@@ -8,6 +8,8 @@ export type NewOrderNotice = {
   source: 'partner' | 'retail'
   partnerName: string | null
   subtotal: number
+  /** Tiền đại lý phải trả (đơn đại lý); null với đơn khác. */
+  partnerPayable: number | null
 }
 
 const DEFAULT_FROM = 'onboarding@resend.dev'
@@ -28,7 +30,7 @@ function message(o: NewOrderNotice): { subject: string; text: string } {
   const who = o.source === 'partner' ? `Đối tác: ${o.partnerName ?? '—'}` : `Đơn lẻ${o.partnerName ? ` (khách của ${o.partnerName})` : ''}`
   return {
     subject: `[${SITE_NAME}] Đơn mới ${o.code}`,
-    text: [`Đơn mới ${o.code}`, who, `Tổng tiền: ${formatVnd(o.subtotal)}`].join('\n'),
+    text: [`Đơn mới ${o.code}`, who, `Tổng tiền: ${formatVnd(o.partnerPayable ?? o.subtotal)}`].join('\n'),
   }
 }
 

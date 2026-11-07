@@ -262,7 +262,10 @@ export async function submitPartnerOrder(raw: PartnerOrderInput): Promise<Submit
     },
     result.priced,
   )
-  const notice = { code: created.code, source: 'partner' as const, partnerName: session.name, subtotal: result.priced.subtotal }
+  const notice = {
+    code: created.code, source: 'partner' as const, partnerName: session.name,
+    subtotal: result.priced.subtotal, partnerPayable: result.priced.partnerPayable,
+  }
   after(() => notifyNewOrder(notice))
   return { status: 'ok', orderId: created.id, code: created.code }
 }
@@ -339,7 +342,8 @@ export async function submitRetailOrder(raw: RetailOrderInput): Promise<SubmitRe
     result.priced,
   )
   const notice = {
-    code: created.code, source: 'retail' as const, partnerName: owner?.name ?? null, subtotal: result.priced.subtotal,
+    code: created.code, source: 'retail' as const, partnerName: owner?.name ?? null,
+    subtotal: result.priced.subtotal, partnerPayable: result.priced.partnerPayable,
   }
   after(() => notifyNewOrder(notice))
   return { status: 'ok', orderId: created.id, code: created.code }

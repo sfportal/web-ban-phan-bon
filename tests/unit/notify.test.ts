@@ -17,7 +17,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 const { notifyNewOrder } = await import('@/lib/notify')
 
-const order = { code: 'DH2611-0001', source: 'partner' as const, partnerName: 'Anh Ba', subtotal: 1170000 }
+const order = { code: 'DH2611-0001', source: 'partner' as const, partnerName: 'Anh Ba', subtotal: 1170000, partnerPayable: null }
 const fetchMock = vi.fn()
 
 beforeEach(() => {
@@ -74,6 +74,15 @@ describe('notifyNewOrder', () => {
     const tg = JSON.parse(tgInit.body)
     expect(tg.chat_id).toBe('-100123')
     expect(tg.text).toContain('DH2611-0001')
+  })
+
+  test('đơn đại lý: báo số tiền đại lý phải trả, không phải giá bán lẻ', async () => {
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', '123:abc')
+    settingsRows = [{ key: 'telegram_chat_id', value: '-100123' }]
+    await notifyNewOrder({ ...order, subtotal: 1170000, partnerPayable: 1050000 })
+    const text = JSON.parse(fetchMock.mock.calls[0][1].body).text as string
+    expect(text).toContain('1.050.000 đ')
+    expect(text).not.toContain('1.170.000 đ')
   })
 
   test('fetch lỗi không throw', async () => {

@@ -67,8 +67,10 @@ describe('RLS đối tác', () => {
 
   test('partner không ghi trực tiếp được', async () => {
     const a = await createPartner({ kind: 'commission' })
-    const ins = await a.client.from('orders').insert({ source: 'partner', partner_id: a.partnerId } as never)
-    expect(ins.error).not.toBeNull()
+    const ins = await a.client.from('orders').insert({ code: 'DH-HACK', source: 'partner', partner_id: a.partnerId })
+    expect(ins.error?.code).toBe('42501')
+    const farmer = await a.client.from('farmers').insert({ phone: '0911111111', name: 'x', owner_partner_id: a.partnerId })
+    expect(farmer.error?.code).toBe('42501')
     const upd = await a.client.from('products').update({ list_price: 1 }).neq('sku', '').select()
     expect(upd.data ?? []).toEqual([])
     const { count } = await adminClient().from('products').select('id', { count: 'exact', head: true }).eq('list_price', 1)

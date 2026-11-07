@@ -23,6 +23,9 @@ language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.staff where user_id = auth.uid() and role = 'admin')
 $$;
 
+-- Ngoại lệ có chủ ý với quy tắc "RPC chỉ service_role": bốn hàm trợ giúp này phải
+-- giữ EXECUTE cho anon/authenticated vì policy RLS gọi chúng dưới vai trò người dùng.
+-- Chúng chỉ trả thông tin về chính người gọi (auth.uid()).
 revoke all on function public.current_partner_id(), public.current_tier_id(),
   public.is_staff(), public.is_admin() from public;
 grant execute on function public.current_partner_id(), public.current_tier_id(),
@@ -36,6 +39,19 @@ revoke all on all sequences in schema public from anon, authenticated;
 grant select on all tables in schema public to anon, authenticated;
 grant all on all tables in schema public to service_role;
 grant all on all sequences in schema public to service_role;
+
+-- Quyền mặc định cho bảng/hàm tạo ở migration sau (0003+): anon/authenticated chỉ
+-- SELECT bảng, không USAGE sequence, không EXECUTE hàm; hàm mới phải grant rõ ràng.
+alter default privileges for role postgres in schema public
+  revoke all on tables from anon, authenticated;
+alter default privileges for role postgres in schema public
+  grant select on tables to anon, authenticated;
+alter default privileges for role postgres in schema public
+  revoke all on sequences from anon, authenticated;
+alter default privileges for role postgres in schema public
+  revoke execute on functions from anon, authenticated;
+-- EXECUTE mặc định cho PUBLIC chỉ thu hồi được ở mức toàn cục (không theo schema).
+alter default privileges for role postgres revoke execute on functions from public;
 
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
@@ -60,54 +76,54 @@ create policy categories_read on public.categories for select
   to anon, authenticated using (true);
 
 create policy products_read on public.products for select
-  to anon, authenticated using (is_active or public.is_staff());
+  to anon, authenticated using (is_active or (select public.is_staff()));
 
 create policy promotions_read on public.promotions for select
-  to anon, authenticated using (is_active or public.is_staff());
+  to anon, authenticated using (is_active or (select public.is_staff()));
 
 create policy settings_read on public.settings for select
   to anon, authenticated
-  using (key in ('store_name', 'bank_info', 'zalo_link') or public.is_staff());
+  using (key in ('store_name', 'bank_info', 'zalo_link') or (select public.is_staff()));
 
 -- Đối tác (chỉ dữ liệu của mình; pending/locked không có current_partner_id) --
 
 create policy partners_read on public.partners for select
-  to authenticated using (user_id = auth.uid() or public.is_staff());
+  to authenticated using (user_id = (select auth.uid()) or (select public.is_staff()));
 
 create policy partner_tiers_read on public.partner_tiers for select
-  to authenticated using (id = public.current_tier_id() or public.is_staff());
+  to authenticated using (id = (select public.current_tier_id()) or (select public.is_staff()));
 
 create policy tier_rates_read on public.tier_rates for select
-  to authenticated using (tier_id = public.current_tier_id() or public.is_staff());
+  to authenticated using (tier_id = (select public.current_tier_id()) or (select public.is_staff()));
 
 create policy tier_product_rates_read on public.tier_product_rates for select
-  to authenticated using (tier_id = public.current_tier_id() or public.is_staff());
+  to authenticated using (tier_id = (select public.current_tier_id()) or (select public.is_staff()));
 
 create policy farmers_read on public.farmers for select
-  to authenticated using (owner_partner_id = public.current_partner_id() or public.is_staff());
+  to authenticated using (owner_partner_id = (select public.current_partner_id()) or (select public.is_staff()));
 
 create policy orders_read on public.orders for select
-  to authenticated using (partner_id = public.current_partner_id() or public.is_staff());
+  to authenticated using (partner_id = (select public.current_partner_id()) or (select public.is_staff()));
 
 create policy order_lines_read on public.order_lines for select
   to authenticated using (
-    public.is_staff()
-    or order_id in (select id from public.orders where partner_id = public.current_partner_id())
+    (select public.is_staff())
+    or order_id in (select id from public.orders where partner_id = (select public.current_partner_id()))
   );
 
 create policy commission_entries_read on public.commission_entries for select
-  to authenticated using (partner_id = public.current_partner_id() or public.is_staff());
+  to authenticated using (partner_id = (select public.current_partner_id()) or (select public.is_staff()));
 
 -- Nội bộ --------------------------------------------------------------------
 
 create policy staff_read on public.staff for select
-  to authenticated using (user_id = auth.uid() or public.is_staff());
+  to authenticated using (user_id = (select auth.uid()) or (select public.is_staff()));
 
 create policy order_status_log_read on public.order_status_log for select
-  to authenticated using (public.is_staff());
+  to authenticated using ((select public.is_staff()));
 
 create policy farmer_transfer_log_read on public.farmer_transfer_log for select
-  to authenticated using (public.is_staff());
+  to authenticated using ((select public.is_staff()));
 
 create policy order_counters_read on public.order_counters for select
-  to authenticated using (public.is_staff());
+  to authenticated using ((select public.is_staff()));

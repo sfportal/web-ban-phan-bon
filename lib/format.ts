@@ -39,3 +39,19 @@ export function vnDayStart(daysAgo: number, now: Date = new Date()): Date {
   const p = vnParts(now)
   return new Date(Date.UTC(+p.year, +p.month - 1, +p.day - daysAgo) - VN_OFFSET_MS)
 }
+
+/** Ngày yyyy-mm-dd (giờ VN) → 0h giờ VN của ngày đó cộng `plusDays` ngày; null nếu không phải ngày hợp lệ. */
+export function vnDateStart(ymd: string, plusDays = 0): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd)
+  if (!m) return null
+  const [y, mo, d] = [+m[1], +m[2], +m[3]]
+  const utc = new Date(Date.UTC(y, mo - 1, d))
+  if (utc.getUTCFullYear() !== y || utc.getUTCMonth() !== mo - 1 || utc.getUTCDate() !== d) return null
+  return new Date(utc.getTime() + plusDays * 86400_000 - VN_OFFSET_MS)
+}
+
+/** yyyy-mm-dd (giờ VN) của một thời điểm, trừ `minusDays` ngày (để hiển thị ngày kết thúc inclusive). */
+export function vnDateInput(d: Date | string, minusDays = 0): string {
+  const p = vnParts(new Date(new Date(d).getTime() - minusDays * 86400_000))
+  return `${p.year}-${p.month}-${p.day}`
+}

@@ -7,6 +7,10 @@ const ITEMS = [
   { href: '/admin', label: 'Tổng quan' },
   { href: '/admin/san-pham', label: 'Sản phẩm' },
   { href: '/admin/nhom', label: 'Nhóm' },
+  { href: '/admin/bac-doi-tac', label: 'Bậc & tỷ lệ' },
+  { href: '/admin/khuyen-mai', label: 'Khuyến mãi' },
+  { href: '/admin/doi-tac', label: 'Đối tác' },
+  { href: '/admin/nong-dan', label: 'Nông dân' },
 ]
 
 /** Thanh điều hướng khu quản trị (dưới header); cuộn ngang được trên điện thoại. */

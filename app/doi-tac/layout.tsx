@@ -1,3 +1,4 @@
+import { PartnerNav } from '@/components/PartnerNav'
 import { logout } from '@/lib/auth/actions'
 import { requirePartner } from '@/lib/auth/guards'
 
@@ -15,6 +16,7 @@ export default async function PartnerLayout({ children }: LayoutProps<'/doi-tac'
           <button type="submit" className="h-11 px-3 font-semibold text-green-700">Đăng xuất</button>
         </form>
       </header>
+      <PartnerNav kind={partner.kind} />
       {children}
     </div>
   )

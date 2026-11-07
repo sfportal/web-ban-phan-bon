@@ -115,7 +115,7 @@ export function ConfirmStep({
           ) : (
             <>
               <div className="flex justify-between">
-                <dt>Tổng theo giá niêm yết</dt>
+                <dt>Tổng theo giá bán lẻ</dt>
                 <dd><Money value={priced.subtotal} /></dd>
               </div>
               <div className="flex justify-between text-lg font-bold">

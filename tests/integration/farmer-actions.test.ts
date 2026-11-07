@@ -82,6 +82,16 @@ describe('searchMyFarmers', () => {
     expect(await asUser(other, () => searchMyFarmers(mine))).toEqual([])
   })
 
+  test('84/+84 đầu chuỗi chỉ đổi thành 0 khi là SĐT đầy đủ; số dở dang tìm nguyên văn', async () => {
+    const phone = '0918' + String(Date.now()).slice(-3) + '845'
+    await adminClient().from('farmers').insert({ phone, name: 'Chị Tám', owner_partner_id: ctv.partnerId }).throwOnError()
+    const found = (q: string) => asUser(ctv, () => searchMyFarmers(q)).then((r) => r.map((f) => f.phone))
+    expect(await found('845')).toContain(phone)
+    expect(await found('84')).toContain(phone)
+    expect(await found('84' + phone.slice(1))).toEqual([phone])
+    expect(await found('+84 ' + phone.slice(1, 4) + ' ' + phone.slice(4))).toEqual([phone])
+  })
+
   test('% và _ là ký tự thường', async () => {
     expect(await asUser(ctv, () => searchMyFarmers('%'))).toEqual([])
     expect(await asUser(ctv, () => searchMyFarmers('_'))).toEqual([])

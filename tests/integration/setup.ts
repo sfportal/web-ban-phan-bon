@@ -16,6 +16,8 @@ vi.mock('next/server', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next/server')>()
   return {
     ...actual,
+    // connection() (guard chờ request thật) throw ngoài request của Next: trong test luôn là request.
+    connection: async () => {},
     after: vi.fn((task: Promise<unknown> | (() => unknown)) => {
       void Promise.resolve()
         .then(() => (typeof task === 'function' ? task() : task))

@@ -1,12 +1,12 @@
 import 'server-only'
 // Đường gửi đơn (tiền): server tải lại sản phẩm/khuyến mãi/bậc, tính bằng priceOrder,
 // so với giá trình duyệt đã thấy, rồi gọi RPC create_order (idempotent theo client_key).
-// Không có 'use server' ở đây: Server Action công khai là lib/orders/actions.ts, để
-// priceAndDiff (dùng chung cho sửa đơn ở Task 10/13) không bị lộ thành endpoint.
+// Không có 'use server' ở đây: Server Action công khai là lib/orders/actions.ts (gửi đơn)
+// và lib/orders/edit.ts (sửa/hủy), để priceAndDiff và các hàm dùng chung không bị lộ thành endpoint.
 import { headers } from 'next/headers'
 import { after } from 'next/server'
 import { z } from 'zod'
-import { requirePartner } from '@/lib/auth/guards'
+import { requirePartner, type PartnerSession } from '@/lib/auth/guards'
 import { getActivePromos, getProductsByIds, getTier } from '@/lib/catalog/queries'
 import { notifyNewOrder } from '@/lib/notify'
 import { normalizePhone } from '@/lib/phone'
@@ -157,6 +157,12 @@ const retailInput = z.object({
   honeypot: z.string().optional(),
 })
 
+/** Kiểm tra mảng dòng hàng trình duyệt gửi (dùng cho sửa đơn); sai dạng → null. */
+export function parseSeenLines(raw: unknown): SeenLine[] | null {
+  const parsed = z.array(seenLine).max(MAX_LINES).safeParse(raw)
+  return parsed.success ? parsed.data : null
+}
+
 export type PartnerOrderInput = z.input<typeof partnerInput>
 export type RetailOrderInput = z.input<typeof retailInput>
 
@@ -171,7 +177,8 @@ async function existingOrder(clientKey: string) {
   return data
 }
 
-function linesPayload(priced: PricedOrder): Json {
+/** p_lines cho create_order / replace_order_lines (khóa = tên cột order_lines). */
+export function linesPayload(priced: PricedOrder): Json {
   return priced.lines.map((l) => ({
     farmer_id: l.farmerId,
     product_id: l.productId,
@@ -208,6 +215,20 @@ async function clientIp(): Promise<string | null> {
 
 // Đơn đối tác (CTV / đại lý) --------------------------------------------------------
 
+/** Đại lý mua cho chính mình: không gắn nông dân. CTV: mọi dòng phải là nông dân của mình. */
+export async function farmersAllowed(
+  session: Pick<PartnerSession, 'kind' | 'partnerId'>, lines: Pick<SeenLine, 'farmerId'>[],
+): Promise<boolean> {
+  const farmerIds = lines.map((l) => l.farmerId)
+  if (session.kind === 'wholesale') return farmerIds.every((f) => f === null)
+  if (farmerIds.length === 0) return true
+  if (farmerIds.some((f) => f === null)) return false
+  const unique = [...new Set(farmerIds as string[])]
+  const { data: owned } = await adminClient()
+    .from('farmers').select('id').in('id', unique).eq('owner_partner_id', session.partnerId).throwOnError()
+  return owned.length === unique.length
+}
+
 export async function submitPartnerOrder(raw: PartnerOrderInput): Promise<SubmitResult> {
   const session = await requirePartner()
   const parsed = partnerInput.safeParse(raw)
@@ -223,17 +244,7 @@ export async function submitPartnerOrder(raw: PartnerOrderInput): Promise<Submit
       : fail('missing_fields')
   }
 
-  // Đại lý mua cho chính mình: không gắn nông dân. CTV: mọi dòng phải là nông dân của mình.
-  const farmerIds = input.lines.map((l) => l.farmerId)
-  if (session.kind === 'wholesale') {
-    if (farmerIds.some((f) => f !== null)) return fail('farmer_not_owned')
-  } else if (farmerIds.length > 0) {
-    if (farmerIds.some((f) => f === null)) return fail('farmer_not_owned')
-    const unique = [...new Set(farmerIds as string[])]
-    const { data: owned } = await adminClient()
-      .from('farmers').select('id').in('id', unique).eq('owner_partner_id', session.partnerId).throwOnError()
-    if (owned.length !== unique.length) return fail('farmer_not_owned')
-  }
+  if (!(await farmersAllowed(session, input.lines))) return fail('farmer_not_owned')
 
   const result = await priceAndDiff({ lines: input.lines, tierId: session.tierId, acceptChanges: input.acceptChanges })
   if (result.status !== 'ok') return result

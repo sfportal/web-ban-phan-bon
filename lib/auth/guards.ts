@@ -1,6 +1,16 @@
 import 'server-only'
 import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+
+/**
+ * supabase-js đọc Date.now() khi kiểm tra hạn phiên. Với cacheComponents, Next coi đó là
+ * giá trị "không ổn định" nếu xảy ra lúc prerender (kể cả giai đoạn đã có cookie), nên
+ * guard chờ request thật trước (connection()). Trong Server Action nó resolve ngay.
+ */
+async function requestTime(): Promise<void> {
+  await connection()
+}
 
 export type PartnerSession = {
   userId: string
@@ -16,6 +26,7 @@ export type PartnerSession = {
  * → /cho-duyet; bị khóa → đăng xuất rồi /dang-nhap?locked=1; không phải đối tác → /.
  */
 export async function requirePartner(): Promise<PartnerSession> {
+  await requestTime()
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/dang-nhap')
@@ -49,6 +60,7 @@ export async function requirePartner(): Promise<PartnerSession> {
 export async function requireStaff(
   min: 'staff' | 'admin' = 'staff',
 ): Promise<{ userId: string; role: 'admin' | 'staff' }> {
+  await requestTime()
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/dang-nhap')

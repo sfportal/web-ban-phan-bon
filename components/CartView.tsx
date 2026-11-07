@@ -31,15 +31,14 @@ export function CartView({ products, promos }: { products: CatalogProduct[]; pro
     )
   }
 
-  let total = 0
   const rows = items.map(({ productId, qty }) => {
     const product = byId.get(productId)
     if (!product) return { productId, qty, product: null, unitPrice: 0, orderable: false }
     const unitPrice = salePrice(product, promos, now).price
     const orderable = product.inStock
-    if (orderable) total += unitPrice * qty
     return { productId, qty, product, unitPrice, orderable }
   })
+  const total = rows.reduce((sum, r) => (r.orderable ? sum + r.unitPrice * r.qty : sum), 0)
 
   return (
     <div className="flex flex-col gap-4">

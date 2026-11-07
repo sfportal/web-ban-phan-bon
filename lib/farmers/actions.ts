@@ -74,7 +74,9 @@ export async function searchMyFarmers(q: string): Promise<FarmerSummary[]> {
   const digits = query.replace(/[\s.\-()]/g, '')
   const searches = [base().ilike('name', containsPattern(query)).throwOnError()]
   if (/^\+?\d+$/.test(digits)) {
-    searches.push(base().ilike('phone', containsPattern(digits.replace(/^\+?84/, '0'))).throwOnError())
+    // SĐT đầy đủ (kể cả dạng 84/+84) → so theo dạng chuẩn; số dở dang ("845") tìm nguyên văn.
+    const phone = normalizePhone(digits) ?? digits.replace(/^\+/, '')
+    searches.push(base().ilike('phone', containsPattern(phone)).throwOnError())
   }
   const found = new Map<string, FarmerSummary>()
   for (const { data } of await Promise.all(searches)) for (const f of data) found.set(f.id, f)

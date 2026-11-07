@@ -105,6 +105,25 @@ describe('importProducts', () => {
   })
 })
 
+describe('số lượng lớn (> 1000 dòng)', () => {
+  const N = 1200
+  test('nhập 1200 dòng thành công, xuất trả đủ và nhập lại được', async () => {
+    const rows = Array.from({ length: N }, (_, i) => [`${PREFIX}BULK${String(i).padStart(4, '0')}`, `SP ${i}`, 'bao', 'Phân NPK', 1000 + i, 'có', 'có', ''])
+    const file = await xlsxFile(rows)
+    expect(await asUser(admin, () => importProducts(formWith(file)))).toEqual({ created: N, updated: 0 })
+
+    const buf = await asUser(admin, () => exportProducts())
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf as never)
+    const total = await countProducts()
+    expect(total).toBeGreaterThan(1000)
+    expect(wb.worksheets[0].rowCount - 1).toBe(total)
+
+    expect(await asUser(admin, () => importProducts(formWith(new File([new Uint8Array(buf)], 'x.xlsx')))))
+      .toEqual({ created: 0, updated: total })
+  })
+})
+
 describe('exportProducts', () => {
   test('xuất rồi nhập lại không đổi dữ liệu', async () => {
     await adminClient().from('products').insert({
@@ -181,7 +200,7 @@ describe('saveProduct / toggleProduct', () => {
     const row = (await bySku(`${PREFIX}P1`))!
     expect(await asUser(admin, () => toggleProduct(row.id, 'in_stock'))).toEqual({ status: 'ok', value: false })
     expect((await bySku(`${PREFIX}P1`))).toMatchObject({ in_stock: false, is_active: true })
-    expect(await asUser(admin, () => toggleProduct(row.id, 'in_stock'))).toEqual({ status: 'ok', value: true })
+    expect(await asUser(admin, () => toggleProduct(row.id, 'in_stock', true))).toEqual({ status: 'ok', value: true })
     expect(await asUser(admin, () => toggleProduct('khong-phai-uuid', 'is_active'))).toEqual({ status: 'not_found' })
     expect(await redirectTarget(asUser(staff, () => toggleProduct(row.id, 'is_active')))).toBe('/')
     expect(await redirectTarget(asUser(staff, () => saveProduct(productForm({ sku: `${PREFIX}ZZ` }))))).toBe('/')

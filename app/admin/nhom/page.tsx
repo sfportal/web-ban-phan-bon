@@ -3,15 +3,16 @@ import { CategoryManager } from '@/components/admin/CategoryManager'
 import { requireStaff } from '@/lib/auth/guards'
 import { SITE_NAME } from '@/lib/site'
 import { adminClient } from '@/lib/supabase/admin'
+import { fetchAll } from '@/lib/supabase/fetch-all'
 
 export const metadata = { title: `Nhóm sản phẩm — ${SITE_NAME}` }
 
 async function Categories() {
   const { role } = await requireStaff()
   const db = adminClient()
-  const [{ data: cats }, { data: prods }] = await Promise.all([
+  const [{ data: cats }, prods] = await Promise.all([
     db.from('categories').select('id, name, sort_order').order('sort_order').order('name').throwOnError(),
-    db.from('products').select('category_id').limit(100000).throwOnError(),
+    fetchAll((from, to) => db.from('products').select('category_id').order('id').range(from, to).throwOnError()),
   ])
   const counts = new Map<string, number>()
   for (const p of prods) counts.set(p.category_id, (counts.get(p.category_id) ?? 0) + 1)

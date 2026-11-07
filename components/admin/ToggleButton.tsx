@@ -22,7 +22,7 @@ export function ToggleButton({
       disabled={pending}
       onClick={() =>
         start(async () => {
-          const res = await toggleProduct(id, field)
+          const res = await toggleProduct(id, field, !value)
           if (res.status === 'ok') setValue(res.value)
           router.refresh()
         })

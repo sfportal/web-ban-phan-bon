@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { requireStaff } from '@/lib/auth/guards'
 import { buildProductTemplate, buildProductWorkbook, parseProductSheet, parsePrice, type RowError } from '@/lib/excel/products'
 import { adminClient } from '@/lib/supabase/admin'
+import { fetchAll } from '@/lib/supabase/fetch-all'
 import { parseImageLink, validateImage } from './image'
 import { uploadProductImage } from './product-image'
 
@@ -33,8 +34,9 @@ export async function importProducts(form: FormData): Promise<ImportResult> {
   if (errors.length) return { errors }
   if (rows.length === 0) return { errors: [{ row: 0, message: 'File không có dòng sản phẩm nào' }] }
 
-  const { data: existing } = await db
-    .from('products').select('sku').in('sku', rows.map((r) => r.sku)).throwOnError()
+  // Đọc hết SKU hiện có theo trang (không dùng .in(...) vì URL GET quá dài với nhiều SKU).
+  const existing = await fetchAll((from, to) =>
+    db.from('products').select('sku').order('sku').range(from, to).throwOnError())
   const have = new Set(existing.map((p) => p.sku))
   // Một lệnh upsert = một giao dịch. Không gửi image_url nên ảnh sẵn có được giữ nguyên;
   // updated_price_at do trigger products_touch_price cập nhật khi giá đổi.
@@ -53,10 +55,11 @@ export async function importProducts(form: FormData): Promise<ImportResult> {
 /** Toàn bộ sản phẩm (kể cả đang ẩn) theo đúng mẫu nhập. */
 export async function exportProducts(): Promise<Buffer> {
   await requireStaff('admin')
-  const { data } = await adminClient()
-    .from('products')
-    .select('sku, name, unit, list_price, in_stock, is_active, description, categories(name)')
-    .order('sku').limit(10000).throwOnError()
+  const db = adminClient()
+  const data = await fetchAll((from, to) =>
+    db.from('products')
+      .select('sku, name, unit, list_price, in_stock, is_active, description, categories(name)')
+      .order('sku').range(from, to).throwOnError())
   return buildProductWorkbook(
     data.map((p) => ({
       sku: p.sku, name: p.name, unit: p.unit, category: p.categories?.name ?? '',
@@ -154,15 +157,15 @@ export async function saveProduct(form: FormData): Promise<SaveResult> {
   return { status: 'ok', id: productId! }
 }
 
-/** Đảo nhanh "Còn hàng" / "Hiển thị" của một sản phẩm. */
-export async function toggleProduct(id: string, field: 'in_stock' | 'is_active'): Promise<{ status: 'ok'; value: boolean } | { status: 'not_found' }> {
+/** Đặt nhanh "Còn hàng" / "Hiển thị" (giá trị `desired` từ client; bỏ qua thì đảo giá trị hiện tại). */
+export async function toggleProduct(id: string, field: 'in_stock' | 'is_active', desired?: boolean): Promise<{ status: 'ok'; value: boolean } | { status: 'not_found' }> {
   await requireStaff('admin')
   if (field !== 'in_stock' && field !== 'is_active') throw new Error('Trường không hợp lệ')
   if (!z.uuid().safeParse(id).success) return { status: 'not_found' }
   const db = adminClient()
   const { data } = await db.from('products').select('in_stock, is_active').eq('id', id).maybeSingle().throwOnError()
   if (!data) return { status: 'not_found' }
-  const value = !data[field]
+  const value = typeof desired === 'boolean' ? desired : !data[field]
   await db.from('products').update(field === 'in_stock' ? { in_stock: value } : { is_active: value }).eq('id', id).throwOnError()
   return { status: 'ok', value }
 }

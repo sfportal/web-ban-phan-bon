@@ -1,7 +1,9 @@
 'use client'
 
+import { ShoppingBag, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo, useSyncExternalStore } from 'react'
+import { Button, EmptyState } from '@/components/ui'
 import { useCart } from '@/lib/cart/use-cart'
 import type { CatalogProduct } from '@/lib/catalog/queries'
 import { Money } from './Money'
@@ -14,18 +16,23 @@ const subscribeNoop = () => () => {}
 export function CartView({ products, prices }: { products: CatalogProduct[]; prices: Record<string, number> }) {
   const { items, setQty, remove } = useCart()
   // Giỏ đọc từ localStorage chỉ có sau khi hydrate; tránh nháy "giỏ trống".
-  const hydrated = useSyncExternalStore(subscribeNoop, () => true, () => false)
+  const hydrated = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  )
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products])
 
-  if (!hydrated) return <p className="py-8 text-center text-gray-600">Đang tải giỏ hàng...</p>
+  if (!hydrated) return <p className="py-8 text-center text-stone-600">Đang tải giỏ hàng...</p>
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-4 py-8">
-        <p className="text-gray-600">Giỏ hàng đang trống.</p>
-        <Link href="/" className="flex h-11 items-center rounded-lg bg-green-700 px-5 font-semibold text-white">
-          Xem sản phẩm
-        </Link>
-      </div>
+      <EmptyState
+        icon={<ShoppingBag className="size-7" />}
+        title="Giỏ hàng đang trống"
+        description="Chọn phân bón, thuốc hay vật tư cần mua rồi bấm “Thêm vào giỏ”."
+        action={<Button href="/">Xem sản phẩm</Button>}
+        className="rounded-2xl border border-dashed border-stone-300 bg-white lg:col-span-2"
+      />
     )
   }
 
@@ -40,42 +47,73 @@ export function CartView({ products, prices }: { products: CatalogProduct[]; pri
 
   return (
     <div className="flex flex-col gap-4">
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col divide-y divide-stone-200 overflow-hidden rounded-2xl border border-stone-200 bg-white">
         {rows.map(({ productId, qty, product, unitPrice, orderable }) => (
-          <li key={productId} className="flex gap-3 rounded-xl border border-gray-200 p-3">
-            {product && <ProductImage url={product.imageUrl} name={product.name} unit={product.unit} brand={product.brand} categorySlug={product.categorySlug} className="h-20 w-20 shrink-0 rounded-lg" />}
+          <li key={productId} className="flex gap-3 p-3 sm:gap-4 sm:p-4">
+            {product ? (
+              <Link
+                href={`/san-pham/${product.id}`}
+                className="shrink-0 self-start overflow-hidden rounded-xl bg-stone-50 ring-1 ring-stone-200"
+              >
+                <ProductImage
+                  url={product.imageUrl}
+                  name={product.name}
+                  unit={product.unit}
+                  brand={product.brand}
+                  categorySlug={product.categorySlug}
+                  sizes="96px"
+                  className="size-20 sm:size-24"
+                />
+              </Link>
+            ) : (
+              <div aria-hidden className="size-20 shrink-0 self-start rounded-xl bg-stone-100 sm:size-24" />
+            )}
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               {product ? (
                 <>
-                  <p className="font-semibold">{product.name}</p>
-                  <p className="text-sm text-gray-600">{product.unit}</p>
+                  <div className="min-w-0">
+                    {product.brand && <p className="truncate text-sm text-stone-500">{product.brand}</p>}
+                    <p className="font-semibold leading-snug text-ink">{product.name}</p>
+                    <p className="text-sm text-stone-600">
+                      {product.unit}
+                      {orderable && (
+                        <>
+                          {' '}
+                          · <Money value={unitPrice} className="tabular-nums" />
+                        </>
+                      )}
+                    </p>
+                  </div>
                   {orderable ? (
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Money value={unitPrice} className="font-semibold text-green-700" />
                       <QtyStepper value={qty} onChange={(n) => setQty(productId, n)} label={`Số lượng ${product.name}`} />
+                      <p className="text-right">
+                        <span className="sr-only">Thành tiền: </span>
+                        <Money value={unitPrice * qty} className="text-lg font-bold tabular-nums text-ink" />
+                      </p>
                     </div>
                   ) : (
                     <p className="font-semibold text-red-700">Hết hàng — sẽ không tính vào đơn</p>
-                  )}
-                  {orderable && (
-                    <p className="text-right">
-                      Thành tiền: <Money value={unitPrice * qty} className="font-bold" />
-                    </p>
                   )}
                 </>
               ) : (
                 <p className="font-semibold text-red-700">Sản phẩm không còn được bán</p>
               )}
-              <button type="button" onClick={() => remove(productId)} className="h-11 self-start font-semibold text-red-700">
+              <button
+                type="button"
+                onClick={() => remove(productId)}
+                className="-ml-2 flex h-11 items-center gap-1.5 self-start rounded-lg px-2 font-semibold text-stone-600 hover:bg-red-50 hover:text-red-700"
+              >
+                <Trash2 aria-hidden className="size-4" />
                 Xóa
               </button>
             </div>
           </li>
         ))}
       </ul>
-      <div className="flex items-center justify-between border-t pt-4 text-lg">
-        <span className="font-semibold">Tổng cộng</span>
-        <Money value={total} className="text-xl font-bold text-green-700" />
+      <div className="flex items-center justify-between rounded-2xl bg-primary-soft px-4 py-4 text-lg">
+        <span className="font-semibold text-primary-hover">Tổng cộng</span>
+        <Money value={total} className="text-2xl font-bold tabular-nums text-primary" />
       </div>
     </div>
   )

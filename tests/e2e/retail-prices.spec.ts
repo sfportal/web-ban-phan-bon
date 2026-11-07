@@ -25,7 +25,8 @@ async function addToCartAndFill(page: Page, name: string) {
   // Giới hạn 3 đơn lẻ / 10 phút theo IP: mỗi test một IP riêng để không ăn hạn mức của retail.spec.
   await page.setExtraHTTPHeaders({ 'x-forwarded-for': `198.18.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}` })
   await page.goto('/')
-  const card = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name }) })
+  // Sản phẩm nổi bật cũng có thẻ riêng: chọn thẻ trong lưới chính.
+  const card = page.getByRole('region', { name: 'Danh sách sản phẩm' }).getByRole('listitem').filter({ has: page.getByRole('heading', { name }) })
   await card.getByRole('button', { name: 'Thêm vào giỏ' }).click()
   await page.getByRole('link', { name: 'Giỏ hàng (1)' }).click()
   await expect(page).toHaveURL(/\/gio-hang$/)

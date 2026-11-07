@@ -11,7 +11,8 @@ test('khách lẻ thêm 2 sản phẩm, đặt COD, thấy mã đơn; admin th�
   const phone = uniquePhone()
   await page.goto('/')
   for (const p of [A, B]) {
-    const card = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: p.name }) })
+    // Sản phẩm nổi bật cũng có thẻ riêng: chọn thẻ trong lưới chính.
+    const card = page.getByRole('region', { name: 'Danh sách sản phẩm' }).getByRole('listitem').filter({ has: page.getByRole('heading', { name: p.name }) })
     await card.getByRole('button', { name: 'Thêm vào giỏ' }).click()
     await expect(card.getByRole('button', { name: 'Đã thêm' })).toBeVisible()
   }

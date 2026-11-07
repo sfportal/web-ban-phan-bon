@@ -33,3 +33,21 @@ export function imageRemotePatterns(supabaseUrl: string | undefined): RemotePatt
     ...(storage ? [storage] : []),
   ]
 }
+
+/**
+ * URL có khớp một mục trong `patterns` không (cùng giao thức, host, cổng; pathname kết thúc
+ * `/**` khớp theo tiền tố). Ảnh admin dán link host lạ → không khớp → next/image để `unoptimized`
+ * thay vì gửi qua bộ tối ưu (bộ tối ưu từ chối host chưa khai báo).
+ */
+export function allowsRemoteImage(src: string, patterns: RemotePattern[]): boolean {
+  let url: URL
+  try {
+    url = new URL(src)
+  } catch {
+    return false
+  }
+  return patterns.some((p) => {
+    if (url.protocol !== `${p.protocol}:` || url.hostname !== p.hostname || url.port !== (p.port ?? '')) return false
+    return p.pathname.endsWith('/**') ? url.pathname.startsWith(p.pathname.slice(0, -2)) : url.pathname === p.pathname
+  })
+}

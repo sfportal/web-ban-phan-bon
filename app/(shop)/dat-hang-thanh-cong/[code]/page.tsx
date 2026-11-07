@@ -1,6 +1,7 @@
-import Link from 'next/link'
+import { CircleCheck, Landmark } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { Money } from '@/components/Money'
+import { Button, Card } from '@/components/ui'
 import { SITE_NAME } from '@/lib/site'
 import { adminClient } from '@/lib/supabase/admin'
 
@@ -50,26 +51,38 @@ export default async function OrderSuccessPage({ params, searchParams }: PagePro
       : []
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4 pb-24 text-base">
-      <h1 className="text-2xl font-bold text-green-700">Đặt hàng thành công</h1>
-      <div className="flex flex-col gap-2 rounded-xl border border-gray-200 p-4">
-        <p>
-          Mã đơn: <span className="text-lg font-bold">{order.code}</span>
-        </p>
-        <p>
-          Tổng tiền: <Money value={Number(order.subtotal)} className="text-lg font-bold text-green-700" />
-        </p>
-        <p>Thanh toán: {order.payment_method === 'transfer' ? 'Chuyển khoản ngân hàng' : 'Trả tiền khi nhận hàng (COD)'}</p>
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 px-4 pb-16 pt-8 text-base md:pt-12">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <span aria-hidden className="flex size-16 items-center justify-center rounded-full bg-primary-soft text-primary ring-8 ring-primary-soft/40">
+          <CircleCheck className="size-9" />
+        </span>
+        <h1 className="text-3xl font-bold tracking-tight text-primary">Đặt hàng thành công</h1>
+        <p className="max-w-sm text-stone-700">Cửa hàng sẽ gọi điện xác nhận đơn trong giờ làm việc.</p>
       </div>
 
+      <Card className="flex flex-col divide-y divide-dashed divide-stone-300">
+        <p className="flex flex-wrap items-baseline justify-between gap-x-3 p-4">
+          Mã đơn: <span className="text-xl font-bold tracking-wide text-ink">{order.code}</span>
+        </p>
+        <p className="flex flex-wrap items-baseline justify-between gap-x-3 p-4">
+          Tổng tiền: <Money value={Number(order.subtotal)} className="text-xl font-bold tabular-nums text-primary" />
+        </p>
+        <p className="flex flex-wrap items-baseline justify-between gap-x-3 p-4">
+          Thanh toán: <span className="font-semibold">{order.payment_method === 'transfer' ? 'Chuyển khoản ngân hàng' : 'Trả tiền khi nhận hàng (COD)'}</span>
+        </p>
+      </Card>
+
       {order.payment_method === 'transfer' && (
-        <section className="flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50 p-4">
-          <h2 className="text-lg font-bold">Thông tin chuyển khoản</h2>
+        <section className="flex flex-col gap-2 rounded-2xl border border-accent/40 bg-accent-soft p-4">
+          <h2 className="flex items-center gap-2 text-lg font-bold">
+            <Landmark aria-hidden className="size-5 text-accent" />
+            Thông tin chuyển khoản
+          </h2>
           {bank.length > 0 ? (
             <dl className="flex flex-col gap-1">
               {bank.map(({ label, value }, i) => (
                 <div key={i} className="flex flex-wrap gap-x-2">
-                  {label && <dt className="text-gray-700">{label}:</dt>}
+                  {label && <dt className="text-stone-700">{label}:</dt>}
                   <dd className="whitespace-pre-line font-semibold">{value}</dd>
                 </div>
               ))}
@@ -83,10 +96,9 @@ export default async function OrderSuccessPage({ params, searchParams }: PagePro
         </section>
       )}
 
-      <p className="font-semibold">Cửa hàng sẽ gọi điện xác nhận đơn trong giờ làm việc.</p>
-      <Link href="/" className="flex h-12 items-center justify-center rounded-lg bg-green-700 px-5 font-semibold text-white">
+      <Button href="/" size="lg" className="w-full">
         Tiếp tục mua hàng
-      </Link>
+      </Button>
     </main>
   )
 }

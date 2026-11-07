@@ -1,43 +1,30 @@
 'use client'
 
-import Link from 'next/link'
+import { MessageCircle } from 'lucide-react'
 import { usePathname } from 'next/navigation'
-import { useCart } from '@/lib/cart/use-cart'
-
-/** Chỉ nhận link http(s) để tránh `javascript:` hay scheme lạ trong setting. */
-function safeHttpUrl(url: string | null): string | null {
-  return url && /^https?:\/\//i.test(url) ? url : null
-}
+import { safeHttpUrl } from '@/lib/site'
 
 /**
- * Nút nổi "Giỏ hàng (n)" và nút "Chat Zalo" (chỉ hiện khi có link http/https).
- * Lớp bọc không nhận chạm để không che nội dung bên dưới; ẩn trên trang giỏ hàng để
- * không che nút đặt hàng.
+ * Nút nổi "Chat Zalo" (chỉ hiện khi có link http/https). Giỏ hàng nằm trên header dính.
+ * Ẩn trên trang giỏ hàng để không che nút đặt hàng; ở trang chi tiết (điện thoại) nâng lên
+ * trên thanh "Thêm vào giỏ" dính đáy.
  */
 export function FloatingActions({ zaloLink }: { zaloLink: string | null }) {
-  const { items } = useCart()
   const pathname = usePathname()
-  if (pathname === '/gio-hang') return null
-  const count = items.reduce((n, i) => n + i.qty, 0)
   const zalo = safeHttpUrl(zaloLink)
+  if (!zalo || pathname === '/gio-hang') return null
+  const raised = pathname.startsWith('/san-pham/')
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-10 flex justify-end gap-2 p-3">
-      {zalo && (
-        <a
-          href={zalo}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="pointer-events-auto flex h-12 items-center rounded-full bg-blue-600 px-5 font-semibold text-white shadow-lg"
-        >
-          Chat Zalo
-        </a>
-      )}
-      <Link
-        href="/gio-hang"
-        className="pointer-events-auto flex h-12 items-center rounded-full bg-green-700 px-5 font-semibold text-white shadow-lg"
-      >
-        Giỏ hàng ({count})
-      </Link>
-    </div>
+    <a
+      href={zalo}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`fixed right-3 z-20 flex h-12 items-center gap-2 rounded-full bg-sky-600 px-4 font-semibold text-white shadow-lg shadow-sky-900/20 hover:bg-sky-700 ${
+        raised ? 'bottom-24 md:bottom-4' : 'bottom-4'
+      }`}
+    >
+      <MessageCircle aria-hidden className="size-5" />
+      Chat Zalo
+    </a>
   )
 }

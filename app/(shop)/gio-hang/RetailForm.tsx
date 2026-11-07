@@ -1,8 +1,10 @@
 'use client'
 
+import { Banknote, Landmark } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMemo, useRef, useState, useSyncExternalStore, useTransition } from 'react'
 import { Money } from '@/components/Money'
+import { Field, Input, Textarea } from '@/components/ui'
 import { useCart } from '@/lib/cart/use-cart'
 import type { CatalogProduct } from '@/lib/catalog/queries'
 import { formatVnd } from '@/lib/format'
@@ -36,9 +38,6 @@ function describeChange(c: Change, name: string): string {
   if (c.field === 'stock') return `${name}: đã hết hàng`
   return `${name}: không còn được bán`
 }
-
-const field = 'h-12 w-full rounded-lg border border-gray-300 px-3 text-base'
-const labelCls = 'flex flex-col gap-1 font-semibold'
 
 /**
  * Form đặt hàng của khách lẻ, đặt dưới giỏ hàng. `prices` là giá bán server tính lúc tải trang;
@@ -106,24 +105,20 @@ export function RetailForm({ products, prices }: { products: CatalogProduct[]; p
   const total = lines.reduce((s, l) => s + l.seenSalePrice * l.qty, 0)
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4 border-t pt-4" noValidate>
-      <h2 className="text-xl font-bold">Thông tin đặt hàng</h2>
-      <label className={labelCls}>
-        Họ tên
-        <input name="name" required maxLength={200} autoComplete="name" className={field} />
-      </label>
-      <label className={labelCls}>
-        Số điện thoại
-        <input name="phone" type="tel" inputMode="tel" required maxLength={30} autoComplete="tel" className={field} />
-      </label>
-      <label className={labelCls}>
-        Địa chỉ giao hàng
-        <textarea name="address" required maxLength={500} rows={2} autoComplete="street-address" className={`${field} h-auto py-2`} />
-      </label>
-      <label className={labelCls}>
-        Ghi chú (không bắt buộc)
-        <textarea name="note" maxLength={1000} rows={2} className={`${field} h-auto py-2`} />
-      </label>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 sm:p-5" noValidate>
+      <h2 className="text-xl font-bold tracking-tight text-ink">Thông tin đặt hàng</h2>
+      <Field label="Họ tên">
+        <Input name="name" required maxLength={200} autoComplete="name" />
+      </Field>
+      <Field label="Số điện thoại" hint="Cửa hàng gọi số này để xác nhận đơn.">
+        <Input name="phone" type="tel" inputMode="tel" required maxLength={30} autoComplete="tel" />
+      </Field>
+      <Field label="Địa chỉ giao hàng">
+        <Textarea name="address" required maxLength={500} rows={2} autoComplete="street-address" />
+      </Field>
+      <Field label="Ghi chú (không bắt buộc)">
+        <Textarea name="note" maxLength={1000} rows={2} />
+      </Field>
       {/* Ô bẫy chống spam: người dùng không thấy, bot hay điền. */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
         <label>
@@ -132,53 +127,59 @@ export function RetailForm({ products, prices }: { products: CatalogProduct[]; p
         </label>
       </div>
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 font-semibold">Thanh toán</legend>
+        <legend className="mb-1.5 font-semibold text-ink">Thanh toán</legend>
         {(
           [
-            ['cod', 'Trả tiền khi nhận hàng (COD)'],
-            ['transfer', 'Chuyển khoản ngân hàng'],
+            ['cod', 'Trả tiền khi nhận hàng (COD)', Banknote],
+            ['transfer', 'Chuyển khoản ngân hàng', Landmark],
           ] as const
-        ).map(([value, text]) => (
-          <label key={value} className="flex min-h-11 items-center gap-3 rounded-lg border border-gray-300 px-3">
+        ).map(([value, text, Icon]) => (
+          <label
+            key={value}
+            className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-stone-300 px-3 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary-soft/60 has-[:checked]:ring-1 has-[:checked]:ring-primary"
+          >
             <input
               type="radio"
               name="paymentMethod"
               value={value}
               checked={paymentMethod === value}
               onChange={() => setPaymentMethod(value)}
-              className="h-5 w-5"
+              className="size-5 accent-[#166534]"
             />
-            {text}
+            <span className="flex-1">{text}</span>
+            <Icon aria-hidden className="size-5 text-stone-500" />
           </label>
         ))}
       </fieldset>
 
-      {changes && (
-        <div role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-3">
-          <p className="font-semibold">Giỏ hàng vừa có thay đổi:</p>
-          <ul className="list-disc pl-5">
-            {changes.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ul>
-          <p>Giỏ hàng đã cập nhật theo giá mới. Kiểm tra lại rồi bấm &quot;Đồng ý và gửi lại&quot;.</p>
-        </div>
-      )}
-      {error && (
-        <p role="alert" className="font-semibold text-red-700">
-          {error}
-        </p>
-      )}
-
-      <button
-        type="submit"
-        disabled={pending || lines.length === 0}
-        className={`flex h-12 items-center justify-center rounded-lg px-5 text-lg font-semibold text-white disabled:opacity-50 ${changes ? 'bg-amber-600' : 'bg-green-700'}`}
-      >
-        {pending ? 'Đang gửi đơn...' : changes
-          ? <span>Đồng ý và gửi lại · <Money value={total} /></span>
-          : <span>Đặt hàng · <Money value={total} /></span>}
-      </button>
+      {/* Điện thoại: thông báo + nút đặt hàng dính đáy màn hình; máy tính: cuối form. */}
+      <div data-bottom-bar="lg" className="fixed inset-x-0 bottom-0 z-20 flex flex-col gap-2 border-t border-stone-200 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_24px_-16px_rgba(0,0,0,0.25)] backdrop-blur lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
+        {changes && (
+          <div role="alert" className="max-h-[40vh] overflow-y-auto rounded-xl border border-amber-400 bg-amber-50 p-3">
+            <p className="font-semibold">Giỏ hàng vừa có thay đổi:</p>
+            <ul className="list-disc pl-5">
+              {changes.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+            <p>Giỏ hàng đã cập nhật theo giá mới. Kiểm tra lại rồi bấm &quot;Đồng ý và gửi lại&quot;.</p>
+          </div>
+        )}
+        {error && (
+          <p role="alert" className="font-semibold text-red-700">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={pending || lines.length === 0}
+          className={`flex h-[52px] w-full items-center justify-center rounded-xl px-5 text-lg font-semibold text-white transition-colors disabled:opacity-50 ${changes ? 'bg-amber-600 hover:bg-amber-700' : 'bg-primary hover:bg-primary-hover'}`}
+        >
+          {pending ? 'Đang gửi đơn...' : changes
+            ? <span>Đồng ý và gửi lại · <Money value={total} /></span>
+            : <span>Đặt hàng · <Money value={total} /></span>}
+        </button>
+      </div>
     </form>
   )
 }

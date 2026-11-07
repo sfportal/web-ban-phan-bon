@@ -31,6 +31,18 @@ body {
   outline-offset: 2px;
 }
 
+/* Trang có thanh dính đáy (nút thêm giỏ / đặt hàng): chừa chỗ để không che cuối trang. */
+@media (max-width: 767px) {
+  body:has([data-bottom-bar="md"]) { padding-bottom: 5.5rem; }
+}
+@media (max-width: 1023px) {
+  body:has([data-bottom-bar="lg"]) { padding-bottom: 5.5rem; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

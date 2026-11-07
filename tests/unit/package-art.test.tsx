@@ -165,4 +165,10 @@ describe('ProductImage', () => {
     expect(html).toContain('<img')
     expect(html).toContain('alt="Urê"')
   })
+  test('ảnh Unsplash → qua bộ tối ưu next/image; host lạ → tải thẳng link gốc', () => {
+    const stock = renderToStaticMarkup(<ProductImage url="https://images.unsplash.com/photo-1" name="Urê" />)
+    expect(stock).toContain('/_next/image?url=')
+    const other = renderToStaticMarkup(<ProductImage url="https://a.vn/x.jpg" name="Urê" />)
+    expect(other).toContain('src="https://a.vn/x.jpg"')
+  })
 })

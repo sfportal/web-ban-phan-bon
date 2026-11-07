@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run --project unit",
-    "test:int": "vitest run --project integration",
+    "test:int": "npm run db:reset && vitest run --project integration",
     "test:e2e": "playwright test",
     "stack:start": "tsx scripts/stack/start.ts",
     "stack:stop": "tsx scripts/stack/stop.ts",

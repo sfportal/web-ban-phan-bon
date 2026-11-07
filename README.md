@@ -35,11 +35,15 @@ URL/khoá mà CLI in ra vào `.env.local`, rồi `supabase db reset` để chạ
 
 ```bash
 npm test           # unit (tests/unit)
-npm run test:int   # integration (tests/integration) — cần stack đang chạy
+npm run test:int   # integration (tests/integration) — cần stack đang chạy; tự chạy db:reset trước
 npm run test:e2e   # Playwright — cần stack đang chạy
 npm run lint
 npm run build
 ```
+
+`npm run test:int` cần DB mới reset (migrations + seed chuẩn) nên script tự chạy `npm run db:reset`
+trước rồi mới chạy vitest — **xoá sạch dữ liệu local** mỗi lần chạy. Tham số thêm được chuyển cho
+vitest, ví dụ `npm run test:int -- rls`.
 
 `npm run test:e2e`:
 

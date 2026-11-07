@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   description: `${SITE_NAME} — đặt hàng phân bón dành cho cộng tác viên và đối tác`,
 };
 
-export const viewport: Viewport = { themeColor: "#15803d" };
+export const viewport: Viewport = { themeColor: "#166534" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

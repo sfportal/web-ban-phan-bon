@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/bang-gia/anh': ['./node_modules/@fontsource/be-vietnam-pro/files/be-vietnam-pro-{latin,latin-ext,vietnamese}-{400,700}-normal.woff'],
   },
+  // Ảnh ngoài chỉ từ Unsplash/Pexels (ghi nguồn trong docs/nguon-anh.md) và Supabase Storage công khai.
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' },
+      { protocol: 'https', hostname: 'images.pexels.com', pathname: '/**' },
+      { protocol: 'https', hostname: '**.supabase.co', pathname: '/storage/v1/object/public/**' },
+    ],
+  },
   experimental: { serverActions: { bodySizeLimit: '3mb' } },
   turbopack: {
     rules: {

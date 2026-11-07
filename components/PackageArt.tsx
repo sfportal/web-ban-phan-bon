@@ -138,7 +138,7 @@ export function PackageArt({
         </text>
       ))}
       {npk ? (
-        <text x={cx} y={label.y + label.h - 14} textAnchor="middle" fontSize={npkSize.toFixed(1)} fontWeight="800" fill={colors.band}>
+        <text x={cx} y={label.y + label.h - 14} textAnchor="middle" fontSize={npkSize.toFixed(1)} fontWeight="700" fill={colors.band}>
           {npk}
         </text>
       ) : (

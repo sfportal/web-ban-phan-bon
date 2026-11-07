@@ -1,13 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafaf5;
+  --foreground: #1c1917;
 }
 
+/* Bộ nhận diện: xanh lá (primary), vàng lúa (accent), nền kem, chữ gần đen ấm. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: #166534;
+  --color-primary-hover: #14532d;
+  --color-primary-soft: #dcfce7;
+  --color-accent: #ca8a04;
+  --color-accent-soft: #fef9c3;
+  --color-cream: #fafaf5;
+  --color-ink: #1c1917;
   --font-sans: var(--font-bvp-latin), var(--font-bvp-latin-ext),
     var(--font-bvp-vi), system-ui, sans-serif;
 }
@@ -15,4 +23,19 @@
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/* Viền focus rõ cho bàn phím, đồng nhất mọi phần tử tương tác. */
+:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

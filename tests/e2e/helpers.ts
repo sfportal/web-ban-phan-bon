@@ -24,6 +24,8 @@ export function currentPeriodLabel(): string {
 
 export async function login(page: Page, phone: string, password: string) {
   await page.goto('/dang-nhap')
+  // Khi Suspense thay form dự phòng bằng form thật, có lúc cả hai cùng nằm trong DOM: chờ còn một.
+  await expect(page.getByLabel('Số điện thoại')).toHaveCount(1)
   await page.getByLabel('Số điện thoại').fill(phone)
   await page.getByLabel('Mật khẩu').fill(password)
   await page.getByRole('button', { name: 'Đăng nhập' }).click()

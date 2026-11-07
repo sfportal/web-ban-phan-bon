@@ -139,7 +139,7 @@ describe('getFrequentProducts', () => {
   }
 
   test('top theo tổng qty, bỏ đơn hủy và đơn của đối tác khác, tối đa 10', async () => {
-    // Seed có 10 sản phẩm; thêm 2 để kiểm tra giới hạn 10.
+    // Seed có nhiều hơn 10 sản phẩm; thêm 2 cho chắc vẫn kiểm được giới hạn 10.
     const { data: cat } = await adminClient().from('categories').select('id').limit(1).single().throwOnError()
     for (let i = 0; i < 2; i++) {
       const sku = `TEST-${randomUUID().slice(0, 8)}`

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { deleteCategory, saveCategory } from '@/lib/admin/products-actions'
 
-type Cat = { id: string; name: string; sortOrder: number; productCount: number }
+type Cat = { id: string; name: string; sortOrder: number; imageUrl: string | null; productCount: number }
 const input = 'h-11 rounded-lg border border-gray-300 px-3 text-base'
 
 function Row({ cat, readOnly }: { cat: Cat; readOnly: boolean }) {
@@ -34,6 +34,7 @@ function Row({ cat, readOnly }: { cat: Cat; readOnly: boolean }) {
         <input type="hidden" name="id" value={cat.id} />
         <input name="name" defaultValue={cat.name} required aria-label="Tên nhóm" className={`${input} min-w-0 flex-1`} />
         <input name="sortOrder" defaultValue={cat.sortOrder} inputMode="numeric" aria-label="Thứ tự" className={`${input} w-20`} />
+        <input name="imageUrl" type="url" defaultValue={cat.imageUrl ?? ''} placeholder="https://..." aria-label="Link ảnh nhóm" className={`${input} min-w-0 basis-full sm:basis-auto sm:flex-1`} />
         <button type="submit" disabled={pending} className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white disabled:opacity-60">Lưu</button>
         <button
           type="button"
@@ -78,6 +79,7 @@ export function CategoryManager({ categories, readOnly }: { categories: Cat[]; r
         >
           <input name="name" required placeholder="Tên nhóm mới" aria-label="Tên nhóm mới" className={`${input} min-w-0 flex-1`} />
           <input name="sortOrder" defaultValue={0} inputMode="numeric" aria-label="Thứ tự" className={`${input} w-20`} />
+          <input name="imageUrl" type="url" placeholder="Link ảnh nhóm (https://...)" aria-label="Link ảnh nhóm" className={`${input} min-w-0 basis-full sm:basis-auto sm:flex-1`} />
           <button type="submit" disabled={pending} className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white disabled:opacity-60">Thêm nhóm</button>
           {error && <p role="alert" className="w-full text-red-700">{error}</p>}
         </form>

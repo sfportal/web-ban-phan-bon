@@ -11,7 +11,7 @@ async function Categories() {
   const { role } = await requireStaff()
   const db = adminClient()
   const [{ data: cats }, prods] = await Promise.all([
-    db.from('categories').select('id, name, sort_order').order('sort_order').order('name').throwOnError(),
+    db.from('categories').select('id, name, sort_order, image_url').order('sort_order').order('name').throwOnError(),
     fetchAll((from, to) => db.from('products').select('category_id').order('id').range(from, to).throwOnError()),
   ])
   const counts = new Map<string, number>()
@@ -19,7 +19,7 @@ async function Categories() {
   return (
     <CategoryManager
       readOnly={role !== 'admin'}
-      categories={cats.map((c) => ({ id: c.id, name: c.name, sortOrder: c.sort_order, productCount: counts.get(c.id) ?? 0 }))}
+      categories={cats.map((c) => ({ id: c.id, name: c.name, sortOrder: c.sort_order, imageUrl: c.image_url, productCount: counts.get(c.id) ?? 0 }))}
     />
   )
 }

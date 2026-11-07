@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs'
 import { describe, expect, test } from 'vitest'
-import { buildProductWorkbook, parseProductSheet, PRODUCT_HEADERS } from '@/lib/excel/products'
+import { buildProductWorkbook, LEGACY_PRODUCT_HEADERS, parseProductSheet, PRODUCT_HEADERS } from '@/lib/excel/products'
 
 const NPK_ID = 'cat-npk'
 const categories = [{ id: NPK_ID, name: 'Phân NPK' }, { id: 'cat-thuoc', name: 'Thuốc BVTV' }]
@@ -85,12 +85,70 @@ describe('parseProductSheet', () => {
 
   test('buildProductWorkbook ghi file mà parseProductSheet đọc lại đúng', async () => {
     const buf = await buildProductWorkbook([
-      { sku: 'A1', name: 'Tên', unit: 'bao', category: 'Phân NPK', listPrice: 125000, inStock: false, isActive: true, description: 'ghi chú' },
+      {
+        sku: 'A1', name: 'Tên', unit: 'bao', category: 'Phân NPK', listPrice: 125000, inStock: false, isActive: true, description: 'ghi chú',
+        brand: null, shortDesc: null, composition: null, benefits: null, usage: null, crops: [], isFeatured: false,
+      },
     ])
     const { rows, errors } = await parseProductSheet(new Uint8Array(buf).buffer, categories)
     expect(errors).toEqual([])
     expect(rows).toEqual([
-      { sku: 'A1', name: 'Tên', unit: 'bao', categoryId: NPK_ID, listPrice: 125000, inStock: false, isActive: true, description: 'ghi chú' },
+      {
+        sku: 'A1', name: 'Tên', unit: 'bao', categoryId: NPK_ID, listPrice: 125000, inStock: false, isActive: true, description: 'ghi chú',
+        brand: null, shortDesc: null, composition: null, benefits: null, usage: null, crops: [], isFeatured: false,
+      },
     ])
+  })
+
+  test('mẫu 15 cột: đủ tiêu đề mới', () => {
+    expect(PRODUCT_HEADERS).toEqual([
+      'SKU', 'Tên', 'Quy cách', 'Nhóm', 'Giá niêm yết', 'Còn hàng', 'Hiển thị', 'Mô tả',
+      'Thương hiệu', 'Mô tả ngắn', 'Thành phần', 'Công dụng', 'Cách dùng', 'Cây trồng', 'Nổi bật',
+    ])
+  })
+
+  test('file 15 cột: đọc cột mô tả, cây trồng tách phẩy, nổi bật', async () => {
+    const { rows, errors } = await parse([
+      ['A', 'NPK', 'bao', 'Phân NPK', '1', 'có', 'có', '', 'Bình Điền', ' ngắn ', 'N 20%', 'xanh lá\ncứng cây', 'bón thúc', 'Lúa, Cà phê, ,', 'có'],
+      ['B', 'NPK', 'bao', 'Phân NPK', '1', '', '', '', '', '', '', '', '', '', ''],
+      ['C', 'NPK', 'bao', 'Phân NPK', '1', '', '', '', '', '', '', '', '', '', 'hmm'],
+    ])
+    expect(errors).toEqual([{ row: 4, message: 'Nổi bật không hợp lệ: hmm' }])
+    expect(rows[0]).toMatchObject({
+      brand: 'Bình Điền', shortDesc: 'ngắn', composition: 'N 20%', benefits: 'xanh lá\ncứng cây', usage: 'bón thúc',
+      crops: ['Lúa', 'Cà phê'], isFeatured: true,
+    })
+    expect(rows[1]).toMatchObject({ brand: null, shortDesc: null, crops: [], isFeatured: false })
+  })
+
+  test('file mẫu cũ 8 cột vẫn đọc được, cột mới coi như trống', async () => {
+    const { rows, errors } = await parseProductSheet(
+      await sheet([['A', 'NPK', 'bao', 'Phân NPK', '1', 'có', 'có', 'mô tả']], LEGACY_PRODUCT_HEADERS),
+      categories,
+    )
+    expect(errors).toEqual([])
+    expect(rows).toEqual([{
+      sku: 'A', name: 'NPK', unit: 'bao', categoryId: NPK_ID, listPrice: 1, inStock: true, isActive: true, description: 'mô tả',
+      brand: null, shortDesc: null, composition: null, benefits: null, usage: null, crops: [], isFeatured: false,
+    }])
+  })
+
+  test('tiêu đề cột mới sai thì báo lỗi', async () => {
+    const bad = [...PRODUCT_HEADERS.slice(0, 8), 'Hãng', ...PRODUCT_HEADERS.slice(9)]
+    const { rows, errors } = await parseProductSheet(await sheet([], bad), categories)
+    expect(rows).toEqual([])
+    expect(errors).toEqual([{ row: 1, message: expect.stringContaining('Sai tiêu đề cột') }])
+  })
+
+  test('xuất 15 cột rồi đọc lại giữ nguyên cột mới', async () => {
+    const buf = await buildProductWorkbook([{
+      sku: 'A2', name: 'Tên', unit: 'bao', category: 'Phân NPK', listPrice: 1000, inStock: true, isActive: true, description: null,
+      brand: 'Phú Mỹ', shortDesc: 'ngắn', composition: 'N 46%', benefits: 'a\nb', usage: 'c', crops: ['Lúa', 'Ngô'], isFeatured: true,
+    }])
+    const { rows, errors } = await parseProductSheet(new Uint8Array(buf).buffer, categories)
+    expect(errors).toEqual([])
+    expect(rows[0]).toMatchObject({
+      brand: 'Phú Mỹ', shortDesc: 'ngắn', composition: 'N 46%', benefits: 'a\nb', usage: 'c', crops: ['Lúa', 'Ngô'], isFeatured: true,
+    })
   })
 })

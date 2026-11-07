@@ -3,7 +3,9 @@
 // ghi dữ liệu bằng service role sau khi đã kiểm quyền.
 import { z } from 'zod'
 import { requireStaff } from '@/lib/auth/guards'
-import { buildProductTemplate, buildProductWorkbook, parseProductSheet, parsePrice, type RowError } from '@/lib/excel/products'
+import {
+  buildProductTemplate, buildProductWorkbook, parseCrops, parseProductSheet, parsePrice, type ProductDetails, type RowError,
+} from '@/lib/excel/products'
 import { adminClient } from '@/lib/supabase/admin'
 import { fetchAll } from '@/lib/supabase/fetch-all'
 import { parseImageLink, validateImage } from './image'
@@ -30,7 +32,7 @@ export async function importProducts(form: FormData): Promise<ImportResult> {
 
   const db = adminClient()
   const { data: categories } = await db.from('categories').select('id, name').throwOnError()
-  const { rows, errors } = await parseProductSheet(await file.arrayBuffer(), categories)
+  const { rows, errors, hasDetails } = await parseProductSheet(await file.arrayBuffer(), categories)
   if (errors.length) return { errors }
   if (rows.length === 0) return { errors: [{ row: 0, message: 'File không có dòng sản phẩm nào' }] }
 
@@ -39,11 +41,13 @@ export async function importProducts(form: FormData): Promise<ImportResult> {
     db.from('products').select('sku').order('sku').range(from, to).throwOnError())
   const have = new Set(existing.map((p) => p.sku))
   // Một lệnh upsert = một giao dịch. Không gửi image_url nên ảnh sẵn có được giữ nguyên;
-  // updated_price_at do trigger products_touch_price cập nhật khi giá đổi.
+  // updated_price_at do trigger products_touch_price cập nhật khi giá đổi. File mẫu cũ (8 cột)
+  // không gửi các cột mô tả mới nên mô tả sẵn có được giữ nguyên.
   const { error } = await db.from('products').upsert(
     rows.map((r) => ({
       sku: r.sku, name: r.name, unit: r.unit, category_id: r.categoryId, list_price: r.listPrice,
       in_stock: r.inStock, is_active: r.isActive, description: r.description,
+      ...(hasDetails ? detailColumns(r) : {}),
     })),
     { onConflict: 'sku' },
   )
@@ -52,18 +56,27 @@ export async function importProducts(form: FormData): Promise<ImportResult> {
   return { created: rows.length - updated, updated }
 }
 
+function detailColumns(d: ProductDetails) {
+  return {
+    brand: d.brand, short_desc: d.shortDesc, composition: d.composition, benefits: d.benefits,
+    usage: d.usage, crops: d.crops, is_featured: d.isFeatured,
+  }
+}
+
 /** Toàn bộ sản phẩm (kể cả đang ẩn) theo đúng mẫu nhập. */
 export async function exportProducts(): Promise<Buffer> {
   await requireStaff('admin')
   const db = adminClient()
   const data = await fetchAll((from, to) =>
     db.from('products')
-      .select('sku, name, unit, list_price, in_stock, is_active, description, categories(name)')
+      .select('sku, name, unit, list_price, in_stock, is_active, description, brand, short_desc, composition, benefits, usage, crops, is_featured, categories(name)')
       .order('sku').range(from, to).throwOnError())
   return buildProductWorkbook(
     data.map((p) => ({
       sku: p.sku, name: p.name, unit: p.unit, category: p.categories?.name ?? '',
       listPrice: Number(p.list_price), inStock: p.in_stock, isActive: p.is_active, description: p.description,
+      brand: p.brand, shortDesc: p.short_desc, composition: p.composition, benefits: p.benefits,
+      usage: p.usage, crops: p.crops ?? [], isFeatured: p.is_featured,
     })),
   )
 }
@@ -88,6 +101,12 @@ const productInput = z.object({
   unit: z.string().trim().max(60),
   categoryId: z.uuid('Chưa chọn nhóm'),
   description: z.string().trim().max(5000),
+  brand: z.string().trim().max(200),
+  shortDesc: z.string().trim().max(500),
+  composition: z.string().trim().max(2000),
+  benefits: z.string().trim().max(5000),
+  usage: z.string().trim().max(5000),
+  crops: z.string().max(1000),
 })
 
 const text = (form: FormData, key: string) => {
@@ -107,6 +126,12 @@ export async function saveProduct(form: FormData): Promise<SaveResult> {
     unit: text(form, 'unit'),
     categoryId: text(form, 'categoryId'),
     description: text(form, 'description'),
+    brand: text(form, 'brand'),
+    shortDesc: text(form, 'shortDesc'),
+    composition: text(form, 'composition'),
+    benefits: text(form, 'benefits'),
+    usage: text(form, 'usage'),
+    crops: text(form, 'crops'),
   })
   if (!parsed.success) return { status: 'invalid', message: parsed.error.issues[0].message }
   const listPrice = parsePrice(text(form, 'listPrice'))
@@ -126,11 +151,15 @@ export async function saveProduct(form: FormData): Promise<SaveResult> {
     if (bad) return { status: 'invalid', message: bad }
   }
 
-  const { id, sku, name, unit, categoryId, description } = parsed.data
+  const { id, sku, name, unit, categoryId, description, brand, shortDesc, composition, benefits, usage, crops } = parsed.data
   const fields = {
     sku, name, unit, category_id: categoryId, list_price: listPrice,
     in_stock: flag(form, 'inStock'), is_active: flag(form, 'isActive'),
     description: description || null,
+    ...detailColumns({
+      brand: brand || null, shortDesc: shortDesc || null, composition: composition || null,
+      benefits: benefits || null, usage: usage || null, crops: parseCrops(crops), isFeatured: flag(form, 'isFeatured'),
+    }),
   }
   const db = adminClient()
   let productId = id
@@ -179,8 +208,15 @@ const categoryInput = z.object({
   sortOrder: z.coerce.number().int().min(0).max(100000),
 })
 
+/** Tạo/sửa nhóm. Field `imageUrl`: không gửi = giữ ảnh hiện có; rỗng = bỏ ảnh; chỉ nhận http/https. */
 export async function saveCategory(form: FormData): Promise<{ status: 'ok'; id: string } | { status: 'invalid'; message: string }> {
   await requireStaff('admin')
+  let imageUrl: string | null | undefined
+  try {
+    imageUrl = form.has('imageUrl') ? parseImageLink(text(form, 'imageUrl')) : undefined
+  } catch (e) {
+    return { status: 'invalid', message: (e as Error).message.replace('Link ảnh', 'Link ảnh nhóm') }
+  }
   const parsed = categoryInput.safeParse({
     id: text(form, 'id') || undefined,
     name: text(form, 'name'),
@@ -198,13 +234,15 @@ export async function saveCategory(form: FormData): Promise<{ status: 'ok'; id: 
   const same = all.filter((c) => key(c.name) === key(name))
   if (same.some((c) => c.id !== id)) return { status: 'invalid', message: 'Tên nhóm đã tồn tại' }
 
+  const fields: { name: string; sort_order: number; image_url?: string | null } = { name, sort_order: sortOrder }
+  if (imageUrl !== undefined) fields.image_url = imageUrl
   if (id) {
-    const { data, error } = await db.from('categories').update({ name, sort_order: sortOrder }).eq('id', id).select('id')
+    const { data, error } = await db.from('categories').update(fields).eq('id', id).select('id')
     if (error) return { status: 'invalid', message: isUnique(error) ? 'Tên nhóm đã tồn tại' : error.message }
     if (data.length === 0) return { status: 'invalid', message: 'Không tìm thấy nhóm' }
     return { status: 'ok', id }
   }
-  const { data, error } = await db.from('categories').insert({ name, sort_order: sortOrder }).select('id').single()
+  const { data, error } = await db.from('categories').insert(fields).select('id').single()
   if (error) return { status: 'invalid', message: isUnique(error) ? 'Tên nhóm đã tồn tại' : error.message }
   return { status: 'ok', id: data.id }
 }

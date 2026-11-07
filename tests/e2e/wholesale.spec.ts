@@ -1,9 +1,14 @@
 import { expect, test } from '@playwright/test'
+import { category, productsIn } from '../support/dataset'
 import { addProduct, adminPage, approvePartner, orderIdFromUrl, registerPartner, uniquePhone, vnd } from './helpers'
 
-// Seed "Đại lý cấp 1": Phân NPK 5%, Phân bón lá 12%. Giá đại lý = round(giá bán × (1 − %)).
-const NPK = { name: 'Phân NPK 16-16-8 Đầu Trâu', price: 850_000, rate: 5 }
-const ROONG = { name: 'Phân bón lá Ra rễ cực mạnh', price: 95_000, rate: 12 }
+// Seed "Đại lý cấp 1": tỷ lệ theo nhóm (data/categories.json). Giá đại lý = round(giá bán × (1 − %)).
+const pick = (slug: string, i: number) => {
+  const p = productsIn(slug)[i]
+  return { name: p.name, price: p.list_price, rate: category(slug).rates.dai_ly }
+}
+const NPK = pick('npk', 0)
+const ROONG = pick('phan-bon-la', 2)
 const unitPay = (p: { price: number; rate: number }) => Math.round(p.price * (1 - p.rate / 100))
 
 test('đại lý lên đơn: "Bạn trả" đúng chiết khấu; bấm "Gửi đơn" hai lần chỉ tạo một đơn', async ({ page, browser }) => {

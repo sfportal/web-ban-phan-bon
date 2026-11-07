@@ -1,8 +1,11 @@
 import { expect, test } from '@playwright/test'
+import { productsIn } from '../support/dataset'
 import { adminPage, uniquePhone, vnd } from './helpers'
 
-const A = { name: 'Phân hữu cơ vi sinh Sông Gianh', price: 350_000 }
-const B = { name: 'Thuốc trừ sâu Regent 800WG', price: 65_000 }
+// Không trùng sản phẩm retail-prices.spec (spec đó sửa giá trong DB).
+const seed = (slug: string, i: number) => ({ name: productsIn(slug)[i].name, price: productsIn(slug)[i].list_price })
+const A = seed('huu-co', 0)
+const B = seed('thuoc-bvtv', 2)
 
 test('khách lẻ thêm 2 sản phẩm, đặt COD, thấy mã đơn; admin thấy đơn trong danh sách', async ({ page, browser }) => {
   const phone = uniquePhone()

@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "stack:start": "tsx scripts/stack/start.ts",
     "stack:stop": "tsx scripts/stack/stop.ts",
-    "db:reset": "tsx scripts/stack/db-reset.ts"
+    "db:reset": "tsx scripts/stack/db-reset.ts",
+    "data:gen": "tsx scripts/gen-seed.ts"
   },
   "dependencies": {
     "@fontsource/be-vietnam-pro": "^5.3.0",

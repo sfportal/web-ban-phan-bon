@@ -3,10 +3,13 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import {
   deleteCategory, exportProducts, importProducts, saveCategory, saveProduct, toggleProduct,
 } from '@/lib/admin/products-actions'
-import { PRODUCT_HEADERS } from '@/lib/excel/products'
+import { LEGACY_PRODUCT_HEADERS, PRODUCT_HEADERS } from '@/lib/excel/products'
+import { category } from '../support/dataset'
 import { adminClient, asUser, createPartner, createStaff, redirectTarget, resetData, type TestUser } from './helpers'
 
 const PREFIX = 'T11-'
+const NPK = category('npk').name
+const BVTV = category('thuoc-bvtv').name
 let admin: TestUser
 let staff: TestUser
 let npkId: string
@@ -41,7 +44,7 @@ beforeAll(async () => {
   await resetData()
   await cleanup()
   ;[admin, staff] = await Promise.all([createStaff('admin'), createStaff('staff')])
-  const { data } = await adminClient().from('categories').select('id').eq('name', 'Phân NPK').single().throwOnError()
+  const { data } = await adminClient().from('categories').select('id').eq('slug', 'npk').single().throwOnError()
   npkId = data.id
 })
 afterAll(async () => {
@@ -53,7 +56,7 @@ describe('importProducts', () => {
   test('có lỗi thì không ghi dòng nào', async () => {
     const before = await countProducts()
     const file = await xlsxFile([
-      [`${PREFIX}OK1`, 'Hợp lệ', 'bao', 'Phân NPK', '100000', '', '', ''],
+      [`${PREFIX}OK1`, 'Hợp lệ', 'bao', NPK, '100000', '', '', ''],
       [`${PREFIX}BAD`, 'Sai nhóm', 'bao', 'Không có nhóm này', '100000', '', '', ''],
     ])
     const res = await asUser(admin, () => importProducts(formWith(file)))
@@ -65,8 +68,8 @@ describe('importProducts', () => {
   test('upsert theo SKU và cập nhật updated_price_at khi đổi giá', async () => {
     const a = `${PREFIX}A`, b = `${PREFIX}B`
     const f1 = await xlsxFile([
-      [a, 'Sản phẩm A', 'bao', 'phân npk', '100.000', 'có', 'có', 'mô tả A'],
-      [b, 'Sản phẩm B', 'chai', 'Thuốc BVTV', '50000', '', '', ''],
+      [a, 'Sản phẩm A', 'bao', NPK.toLowerCase(), '100.000', 'có', 'có', 'mô tả A'],
+      [b, 'Sản phẩm B', 'chai', BVTV, '50000', '', '', ''],
     ])
     expect(await asUser(admin, () => importProducts(formWith(f1)))).toEqual({ created: 2, updated: 0 })
     const rowA = (await bySku(a))!
@@ -77,8 +80,8 @@ describe('importProducts', () => {
 
     await new Promise((r) => setTimeout(r, 20))
     const f2 = await xlsxFile([
-      [a, 'Sản phẩm A đổi tên', 'bao', 'Phân NPK', '120000', 'có', 'có', ''], // đổi giá
-      [b, 'Sản phẩm B', 'chai', 'Thuốc BVTV', '50000', '', '', ''], // không đổi giá
+      [a, 'Sản phẩm A đổi tên', 'bao', NPK, '120000', 'có', 'có', ''], // đổi giá
+      [b, 'Sản phẩm B', 'chai', BVTV, '50000', '', '', ''], // không đổi giá
     ])
     expect(await asUser(admin, () => importProducts(formWith(f2)))).toEqual({ created: 0, updated: 2 })
     const a2 = (await bySku(a))!
@@ -90,7 +93,7 @@ describe('importProducts', () => {
 
   test('staff thường và đối tác không gọi được importProducts', async () => {
     const before = await countProducts()
-    const file = await xlsxFile([[`${PREFIX}S`, 'x', '', 'Phân NPK', '1', '', '', '']])
+    const file = await xlsxFile([[`${PREFIX}S`, 'x', '', NPK, '1', '', '', '']])
     expect(await redirectTarget(asUser(staff, () => importProducts(formWith(file))))).toBe('/')
     expect(await redirectTarget(asUser(null, () => importProducts(formWith(file))))).toBe('/dang-nhap')
     const partner = await createPartner({ kind: 'commission' })
@@ -108,7 +111,7 @@ describe('importProducts', () => {
 describe('số lượng lớn (> 1000 dòng)', () => {
   const N = 1200
   test('nhập 1200 dòng thành công, xuất trả đủ và nhập lại được', async () => {
-    const rows = Array.from({ length: N }, (_, i) => [`${PREFIX}BULK${String(i).padStart(4, '0')}`, `SP ${i}`, 'bao', 'Phân NPK', 1000 + i, 'có', 'có', ''])
+    const rows = Array.from({ length: N }, (_, i) => [`${PREFIX}BULK${String(i).padStart(4, '0')}`, `SP ${i}`, 'bao', NPK, 1000 + i, 'có', 'có', ''])
     const file = await xlsxFile(rows)
     expect(await asUser(admin, () => importProducts(formWith(file)))).toEqual({ created: N, updated: 0 })
 
@@ -129,15 +132,30 @@ describe('exportProducts', () => {
     await adminClient().from('products').insert({
       sku: `${PREFIX}HIDDEN`, name: 'Ẩn, hết hàng', unit: 'kg', category_id: npkId, list_price: 99000,
       in_stock: false, is_active: false, description: null,
+      brand: "O'Neil", short_desc: 'ngắn', composition: 'N 20%', benefits: 'dòng 1\ndòng 2', usage: 'pha 20ml',
+      crops: ['Lúa', 'Cà phê'], is_featured: true,
     }).throwOnError()
     const snapshot = async () =>
-      (await adminClient().from('products').select('sku, name, unit, category_id, list_price, in_stock, is_active, description, image_url, updated_price_at').order('sku').throwOnError()).data
+      (await adminClient().from('products').select('sku, name, unit, category_id, list_price, in_stock, is_active, description, image_url, updated_price_at, brand, short_desc, composition, benefits, usage, crops, is_featured').order('sku').throwOnError()).data
     const before = await snapshot()
 
     const buf = await asUser(admin, () => exportProducts())
     const res = await asUser(admin, () => importProducts(formWith(new File([new Uint8Array(buf)], 'xuat.xlsx'))))
     expect(res).toEqual({ created: 0, updated: before.length })
-    expect(await snapshot()).toEqual(before)
+    const after = await snapshot()
+    expect(after).toEqual(before)
+    expect(after.find((p) => p.sku === `${PREFIX}HIDDEN`)).toMatchObject({ brand: "O'Neil", crops: ['Lúa', 'Cà phê'], is_featured: true })
+    expect(after.filter((p) => p.short_desc).length).toBeGreaterThan(1) // sản phẩm seed có mô tả
+  })
+
+  test('nhập file mẫu cũ 8 cột không xóa mô tả sẵn có', async () => {
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet('Sản phẩm')
+    ws.addRow([...LEGACY_PRODUCT_HEADERS])
+    ws.addRow([`${PREFIX}HIDDEN`, 'Ẩn, đổi tên', 'kg', NPK, 99000, 'không', 'không', ''])
+    const file = new File([await wb.xlsx.writeBuffer()], 'cu.xlsx')
+    expect(await asUser(admin, () => importProducts(formWith(file)))).toEqual({ created: 0, updated: 1 })
+    expect(await bySku(`${PREFIX}HIDDEN`)).toMatchObject({ name: 'Ẩn, đổi tên', brand: "O'Neil", crops: ['Lúa', 'Cà phê'], is_featured: true })
   })
 
   test('staff thường không xuất được', async () => {
@@ -176,6 +194,22 @@ describe('saveProduct / toggleProduct', () => {
     expect(await asUser(admin, () => saveProduct(productForm({ sku: `${PREFIX}P2`, listPrice: '-1' })))).toEqual({ status: 'invalid', message: 'Giá không hợp lệ' })
     expect(await asUser(admin, () => saveProduct(productForm({ sku: `${PREFIX}P2`, imageUrl: 'javascript:alert(1)' })))).toMatchObject({ status: 'invalid' })
     expect(await bySku(`${PREFIX}P2`)).toBeNull()
+  })
+
+  test('lưu và đọc lại các cột mô tả mới', async () => {
+    const f = productForm({
+      sku: `${PREFIX}D1`, brand: ' Bình Điền ', shortDesc: 'Ngắn gọn', composition: 'N 16%', benefits: 'Xanh lá\nCứng cây',
+      usage: 'Bón thúc', crops: 'Lúa, Cà phê , ,Sầu riêng', isFeatured: 'on',
+    })
+    const res = await asUser(admin, () => saveProduct(f))
+    expect(res.status).toBe('ok')
+    expect(await bySku(`${PREFIX}D1`)).toMatchObject({
+      brand: 'Bình Điền', short_desc: 'Ngắn gọn', composition: 'N 16%', benefits: 'Xanh lá\nCứng cây', usage: 'Bón thúc',
+      crops: ['Lúa', 'Cà phê', 'Sầu riêng'], is_featured: true,
+    })
+    const id = (res as { id: string }).id
+    expect(await asUser(admin, () => saveProduct(productForm({ id, sku: `${PREFIX}D1`, brand: '', crops: '' })))).toEqual({ status: 'ok', id })
+    expect(await bySku(`${PREFIX}D1`)).toMatchObject({ brand: null, short_desc: null, crops: [], is_featured: false })
   })
 
   test('ảnh tải lên sai định dạng bị từ chối trước khi ghi', async () => {
@@ -226,6 +260,19 @@ describe('nhóm sản phẩm', () => {
     expect(data).toEqual({ name: `${PREFIX}Nhóm A2`, sort_order: 3 })
     expect(await asUser(admin, () => saveCategory(catForm('  ')))).toMatchObject({ status: 'invalid' })
     expect(await redirectTarget(asUser(staff, () => saveCategory(catForm(`${PREFIX}X`))))).toBe('/')
+  })
+
+  test('link ảnh nhóm: lưu http/https, rỗng = bỏ ảnh, không gửi = giữ nguyên', async () => {
+    const res = await asUser(admin, () => saveCategory(catForm(`${PREFIX}Nhóm ảnh`, { imageUrl: 'https://x.vn/nhom.jpg' })))
+    expect(res.status).toBe('ok')
+    const id = (res as { id: string }).id
+    const img = async () => (await adminClient().from('categories').select('image_url').eq('id', id).single().throwOnError()).data.image_url
+    expect(await img()).toBe('https://x.vn/nhom.jpg')
+    expect(await asUser(admin, () => saveCategory(catForm(`${PREFIX}Nhóm ảnh`, { id })))).toEqual({ status: 'ok', id })
+    expect(await img()).toBe('https://x.vn/nhom.jpg')
+    expect(await asUser(admin, () => saveCategory(catForm(`${PREFIX}Nhóm ảnh`, { id, imageUrl: 'javascript:alert(1)' })))).toMatchObject({ status: 'invalid' })
+    expect(await asUser(admin, () => saveCategory(catForm(`${PREFIX}Nhóm ảnh`, { id, imageUrl: '' })))).toEqual({ status: 'ok', id })
+    expect(await img()).toBeNull()
   })
 
   test('xóa nhóm: chặn khi còn sản phẩm, xóa được khi trống', async () => {

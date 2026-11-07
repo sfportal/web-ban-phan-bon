@@ -4,12 +4,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import { submitPartnerOrder, submitRetailOrder } from '@/lib/orders/actions'
 import { priceAndDiff, type SeenLine } from '@/lib/orders/submit'
 import {
-  adminClient, asUser, countOrders, createPartner, insertFarmerFor, randomPhone, redirectTarget, resetData,
+  adminClient, asUser, countOrders, createPartner, insertFarmerFor, pricedPair, randomPhone, redirectTarget, resetData,
   type TestPartner,
 } from './helpers'
 
-// P1: HC-VISINH 350.000đ, P2: HC-PHANBO 120.000đ — cùng nhóm "Phân hữu cơ"
-// (CTV chuẩn 5%, Đại lý cấp 1 8%).
+// P1 350.000đ, P2 120.000đ — hai sản phẩm seed cùng nhóm hữu cơ (CTV chuẩn 5%, Đại lý cấp 1 8%), xem pricedPair().
+let restorePrices: () => Promise<void>
 let P1: string
 let P2: string
 let ctv: TestPartner
@@ -24,11 +24,6 @@ const l = (productId: string, qty: number, farmerId: string | null, seenSalePric
   productId, qty, farmerId, seenSalePrice,
 })
 const r = (productId: string, qty: number, seenSalePrice: number) => ({ productId, qty, seenSalePrice })
-
-async function productId(sku: string): Promise<string> {
-  const { data } = await adminClient().from('products').select('id').eq('sku', sku).single().throwOnError()
-  return data.id
-}
 
 async function order(res: { status: string } & Partial<{ orderId: string }>) {
   expect(res.status).toBe('ok')
@@ -50,8 +45,7 @@ function retail(over: Partial<Parameters<typeof submitRetailOrder>[0]> = {}) {
 
 beforeAll(async () => {
   await resetData()
-  P1 = await productId('HC-VISINH')
-  P2 = await productId('HC-PHANBO')
+  ;({ P1, P2, restore: restorePrices } = await pricedPair())
   ctv = await createPartner({ kind: 'commission' })
   other = await createPartner({ kind: 'commission' })
   dl = await createPartner({ kind: 'wholesale' })
@@ -72,6 +66,7 @@ afterEach(async () => {
 
 afterAll(async () => {
   await resetData()
+  await restorePrices()
 })
 
 describe('submitPartnerOrder', () => {

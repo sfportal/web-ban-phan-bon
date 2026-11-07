@@ -17,6 +17,7 @@ async function Editor({ params }: Pick<PageProps<'/admin/san-pham/[id]'>, 'param
 
   let initial: ProductFormValues = {
     sku: '', name: '', unit: '', categoryId: '', listPrice: 0, imageUrl: null, inStock: true, isActive: true, description: '',
+    brand: '', shortDesc: '', composition: '', benefits: '', usage: '', crops: '', isFeatured: false,
   }
   if (id !== 'moi') {
     if (!UUID.test(id)) notFound()
@@ -26,6 +27,8 @@ async function Editor({ params }: Pick<PageProps<'/admin/san-pham/[id]'>, 'param
       id: data.id, sku: data.sku, name: data.name, unit: data.unit, categoryId: data.category_id,
       listPrice: Number(data.list_price), imageUrl: data.image_url, inStock: data.in_stock,
       isActive: data.is_active, description: data.description ?? '',
+      brand: data.brand ?? '', shortDesc: data.short_desc ?? '', composition: data.composition ?? '',
+      benefits: data.benefits ?? '', usage: data.usage ?? '', crops: (data.crops ?? []).join(', '), isFeatured: data.is_featured,
     }
   }
   return (

@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { phoneToEmail } from '@/lib/phone'
 import { adminClient } from '@/lib/supabase/admin'
 import type { Database, Json } from '@/lib/supabase/database.types'
+import { category, productsIn } from '../support/dataset'
 import { requestContext } from './request-context'
 
 export { adminClient }
@@ -49,6 +50,30 @@ export async function seededTierId(kind: 'commission' | 'wholesale'): Promise<st
   const { data } = await adminClient()
     .from('partner_tiers').select('id').eq('kind', kind).order('name').limit(1).single().throwOnError()
   return data.id
+}
+
+/**
+ * Hai sản phẩm seed cùng nhóm "huu-co" (data/*.json), đặt giá cố định P1 = 350.000đ, P2 = 120.000đ
+ * để các phép tính trong test giữ nguyên; tỷ lệ nhóm (CTV chuẩn 5%, Đại lý cấp 1 8%) được kiểm
+ * lại từ data/categories.json. `restore()` trả giá seed.
+ */
+export async function pricedPair(): Promise<{ P1: string; P2: string; restore: () => Promise<void> }> {
+  const rates = category('huu-co').rates
+  if (rates.ctv !== 5 || rates.dai_ly !== 8) throw new Error(`Test giả định huu-co 5%/8%, data có ${JSON.stringify(rates)}`)
+  const [a, b] = productsIn('huu-co')
+  const admin = adminClient()
+  const id = async (sku: string) =>
+    (await admin.from('products').select('id').eq('sku', sku).single().throwOnError()).data.id
+  const [P1, P2] = [await id(a.sku), await id(b.sku)]
+  await admin.from('products').update({ list_price: 350000 }).eq('id', P1).throwOnError()
+  await admin.from('products').update({ list_price: 120000 }).eq('id', P2).throwOnError()
+  return {
+    P1, P2,
+    restore: async () => {
+      await admin.from('products').update({ list_price: a.list_price }).eq('id', P1).throwOnError()
+      await admin.from('products').update({ list_price: b.list_price }).eq('id', P2).throwOnError()
+    },
+  }
 }
 
 export async function createPartner(opts: {

@@ -16,9 +16,18 @@ export type ProductFormValues = {
   inStock: boolean
   isActive: boolean
   description: string
+  brand: string
+  shortDesc: string
+  composition: string
+  benefits: string
+  usage: string
+  /** Cây trồng, phân cách bằng dấu phẩy. */
+  crops: string
+  isFeatured: boolean
 }
 
 const input = 'h-11 w-full rounded-lg border border-gray-300 px-3 text-base'
+const textarea = 'rounded-lg border border-gray-300 p-3 text-base'
 
 export function ProductForm({ initial, categories }: { initial: ProductFormValues; categories: { id: string; name: string }[] }) {
   const router = useRouter()
@@ -58,16 +67,31 @@ export function ProductForm({ initial, categories }: { initial: ProductFormValue
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select></label>
         <label className="flex flex-col gap-1"><span className="font-semibold">Giá niêm yết (đ)</span>
-          <input name="listPrice" required inputMode="numeric" defaultValue={initial.listPrice || ''} className={input} /></label>
+          <input name="listPrice" required inputMode="numeric" defaultValue={initial.listPrice || ''} aria-describedby="price-hint" className={input} />
+          <span id="price-hint" className="text-sm text-gray-600">Giá tham khảo thị trường — sửa theo giá bán thực tế</span></label>
+        <label className="flex flex-col gap-1"><span className="font-semibold">Thương hiệu</span>
+          <input name="brand" defaultValue={initial.brand} placeholder="Bình Điền (Đầu Trâu)" className={input} /></label>
         <div className="flex flex-wrap items-center gap-6">
           <label className="flex h-11 items-center gap-2"><input type="checkbox" name="inStock" defaultChecked={initial.inStock} className="size-5" /> Còn hàng</label>
           <label className="flex h-11 items-center gap-2"><input type="checkbox" name="isActive" defaultChecked={initial.isActive} className="size-5" /> Hiển thị</label>
+          <label className="flex h-11 items-center gap-2"><input type="checkbox" name="isFeatured" defaultChecked={initial.isFeatured} className="size-5" /> Nổi bật</label>
         </div>
       </div>
-      <label className="flex flex-col gap-1"><span className="font-semibold">Mô tả</span>
-        <textarea name="description" rows={4} defaultValue={initial.description} className="rounded-lg border border-gray-300 p-3 text-base" /></label>
+      <label className="flex flex-col gap-1"><span className="font-semibold">Mô tả ngắn</span>
+        <input name="shortDesc" defaultValue={initial.shortDesc} placeholder="Một câu giới thiệu hiện trên thẻ sản phẩm" className={input} /></label>
+      <label className="flex flex-col gap-1"><span className="font-semibold">Thành phần</span>
+        <textarea name="composition" rows={2} defaultValue={initial.composition} className={textarea} /></label>
+      <label className="flex flex-col gap-1"><span className="font-semibold">Công dụng</span>
+        <textarea name="benefits" rows={4} defaultValue={initial.benefits} placeholder="Mỗi ý một dòng" className={textarea} /></label>
+      <label className="flex flex-col gap-1"><span className="font-semibold">Cách dùng</span>
+        <textarea name="usage" rows={4} defaultValue={initial.usage} placeholder="Mỗi ý một dòng" className={textarea} /></label>
+      <label className="flex flex-col gap-1"><span className="font-semibold">Cây trồng</span>
+        <input name="crops" defaultValue={initial.crops} placeholder="Lúa, Cà phê, Sầu riêng" aria-describedby="crops-hint" className={input} />
+        <span id="crops-hint" className="text-sm text-gray-600">Phân cách bằng dấu phẩy</span></label>
+      <label className="flex flex-col gap-1"><span className="font-semibold">Mô tả thêm</span>
+        <textarea name="description" rows={4} defaultValue={initial.description} className={textarea} /></label>
 
-      <fieldset className="flex flex-col gap-3 rounded-lg border border-gray-200 p-3">
+      <fieldset className="flex min-w-0 flex-col gap-3 rounded-lg border border-gray-200 p-3">
         <legend className="px-1 font-semibold">Ảnh</legend>
         <ProductImage url={initial.imageUrl} name={initial.name || 'sản phẩm'} className="h-32 w-32 rounded-lg" />
         <label className="flex flex-col gap-1"><span>Tải ảnh lên (JPG, PNG, WebP, tối đa 2MB)</span>

@@ -11,14 +11,25 @@ export type CatalogProduct = ProductInput & {
   imageUrl: string | null
   description: string | null
   categoryName: string
+  categorySlug: string | null
   updatedPriceAt: Date
+  brand: string | null
+  shortDesc: string | null
+  composition: string | null
+  benefits: string | null
+  usage: string | null
+  crops: string[]
+  isFeatured: boolean
 }
 
+export type CatalogCategory = { id: string; name: string; slug: string | null; imageUrl: string | null }
+
 const PRODUCT_COLUMNS =
-  'id, sku, name, unit, category_id, list_price, image_url, in_stock, is_active, description, updated_price_at, categories(name, sort_order)'
+  'id, sku, name, unit, category_id, list_price, image_url, in_stock, is_active, description, updated_price_at, ' +
+  'brand, short_desc, composition, benefits, usage, crops, is_featured, categories(name, sort_order, slug)'
 
 type ProductRow = Database['public']['Tables']['products']['Row'] & {
-  categories: { name: string; sort_order: number } | null
+  categories: { name: string; sort_order: number; slug: string | null } | null
 }
 
 // bigint/numeric có thể về dạng chuỗi tùy cấu hình; ép về số nguyên VNĐ / số thực.
@@ -39,7 +50,15 @@ function toProduct(row: ProductRow): CatalogProduct {
     imageUrl: row.image_url,
     description: row.description,
     categoryName: row.categories?.name ?? '',
+    categorySlug: row.categories?.slug ?? null,
     updatedPriceAt: new Date(row.updated_price_at),
+    brand: row.brand,
+    shortDesc: row.short_desc,
+    composition: row.composition,
+    benefits: row.benefits,
+    usage: row.usage,
+    crops: row.crops ?? [],
+    isFeatured: row.is_featured,
   }
 }
 
@@ -55,17 +74,17 @@ function sortProducts(rows: ProductRow[]): ProductRow[] {
 /** Sản phẩm đang bán (is_active), nhóm, khuyến mãi đang bật. Chạy dưới RLS của client truyền vào. */
 export async function getCatalog(db: Db): Promise<{
   products: CatalogProduct[]
-  categories: { id: string; name: string }[]
+  categories: CatalogCategory[]
   promos: PromotionInput[]
 }> {
   const [products, categories, promos] = await Promise.all([
     db.from('products').select(PRODUCT_COLUMNS).eq('is_active', true).throwOnError(),
-    db.from('categories').select('id, name').order('sort_order').order('name').throwOnError(),
+    db.from('categories').select('id, name, slug, image_url').order('sort_order').order('name').throwOnError(),
     getActivePromos(db),
   ])
   return {
     products: sortProducts(products.data as unknown as ProductRow[]).map(toProduct),
-    categories: categories.data,
+    categories: categories.data.map((c) => ({ id: c.id, name: c.name, slug: c.slug, imageUrl: c.image_url })),
     promos,
   }
 }

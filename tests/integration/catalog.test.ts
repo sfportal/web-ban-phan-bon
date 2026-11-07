@@ -1,5 +1,7 @@
 import { afterEach, beforeAll, describe, expect, test } from 'vitest'
 import { getCatalog, getProductsByIds, getTier } from '@/lib/catalog/queries'
+import { IMAGES } from '@/lib/media/images'
+import { CATEGORIES, category, OVERRIDE, PRODUCTS } from '../support/dataset'
 import { adminClient, anonClient } from './helpers'
 
 const created: { products: string[]; promos: string[] } = { products: [], promos: [] }
@@ -12,9 +14,11 @@ afterEach(async () => {
   created.promos = []
 })
 
+const NPK = category('npk')
+const NAMES = CATEGORIES.map((c) => c.name)
 let categoryId: string
 beforeAll(async () => {
-  const { data } = await adminClient().from('categories').select('id').eq('name', 'Phân NPK').single().throwOnError()
+  const { data } = await adminClient().from('categories').select('id').eq('slug', NPK.slug).single().throwOnError()
   categoryId = data.id
 })
 
@@ -49,11 +53,31 @@ describe('getCatalog', () => {
     const p = products.find((x) => x.id === shown)!
     expect(p).toMatchObject({
       sku: 'TEST-SHOWN', name: 'SP TEST-SHOWN', unit: 'bao', categoryId, listPrice: 100000,
-      inStock: true, isActive: true, imageUrl: null, categoryName: 'Phân NPK',
+      inStock: true, isActive: true, imageUrl: null, categoryName: NPK.name, categorySlug: NPK.slug,
+      brand: null, shortDesc: null, composition: null, benefits: null, usage: null, crops: [], isFeatured: false,
     })
     expect(Number.isInteger(p.listPrice)).toBe(true)
     expect(p.updatedPriceAt).toBeInstanceOf(Date)
-    expect(categories.map((c) => c.name)).toEqual(['Phân NPK', 'Phân hữu cơ', 'Phân bón lá', 'Thuốc BVTV', 'Vật tư'])
+    expect(categories.map((c) => c.name)).toEqual(NAMES)
+  })
+
+  test('sản phẩm seed có đủ mô tả; nhóm có slug và ảnh', async () => {
+    const { products, categories } = await getCatalog(anonClient())
+    expect(products.map((p) => p.sku)).toEqual(expect.arrayContaining(PRODUCTS.map((p) => p.sku)))
+    for (const seed of PRODUCTS) {
+      const p = products.find((x) => x.sku === seed.sku)!
+      expect(p).toMatchObject({
+        name: seed.name, brand: seed.brand, unit: seed.unit, listPrice: seed.list_price, categorySlug: seed.category,
+        shortDesc: seed.short_desc, composition: seed.composition, benefits: seed.benefits, usage: seed.usage,
+        isFeatured: seed.is_featured,
+      })
+      expect(p.crops).toEqual(seed.crops)
+    }
+    expect(categories).toHaveLength(CATEGORIES.length)
+    for (const c of CATEGORIES) {
+      const got = categories.find((x) => x.slug === c.slug)!
+      expect(got).toMatchObject({ name: c.name, imageUrl: IMAGES[c.image_key].url })
+    }
   })
 
   test('chỉ lấy sản phẩm active, kể cả với client admin; sắp theo nhóm rồi tên', async () => {
@@ -61,7 +85,7 @@ describe('getCatalog', () => {
     const { products } = await getCatalog(adminClient())
     expect(products.map((p) => p.id)).not.toContain(hidden)
     const keys = products.map((p) => [p.categoryName, p.name])
-    const order = ['Phân NPK', 'Phân hữu cơ', 'Phân bón lá', 'Thuốc BVTV', 'Vật tư']
+    const order = NAMES
     for (let i = 1; i < keys.length; i++) {
       const [c0, n0] = keys[i - 1]
       const [c1, n1] = keys[i]
@@ -107,14 +131,11 @@ describe('getTier', () => {
     const { data: tier } = await admin.from('partner_tiers').select('id').eq('name', 'CTV chuẩn').single().throwOnError()
     const t = await getTier(admin, tier.id)
     expect(t.kind).toBe('commission')
-    const { data: cats } = await admin.from('categories').select('id, name').throwOnError()
-    const byName = Object.fromEntries(cats.map((c) => [c.name, c.id]))
-    expect(t.byCategory).toEqual({
-      [byName['Phân NPK']]: 3, [byName['Phân hữu cơ']]: 5, [byName['Phân bón lá']]: 8,
-      [byName['Thuốc BVTV']]: 6, [byName['Vật tư']]: 4,
-    })
-    const { data: p } = await admin.from('products').select('id').eq('sku', 'LA-DUONGTRAI').single().throwOnError()
-    expect(t.byProduct).toEqual({ [p.id]: 10 })
+    const { data: cats } = await admin.from('categories').select('id, slug').throwOnError()
+    const bySlug = Object.fromEntries(cats.map((c) => [c.slug, c.id]))
+    expect(t.byCategory).toEqual(Object.fromEntries(CATEGORIES.map((c) => [bySlug[c.slug], c.rates.ctv])))
+    const { data: p } = await admin.from('products').select('id').eq('sku', OVERRIDE.sku).single().throwOnError()
+    expect(t.byProduct).toEqual({ [p.id]: OVERRIDE.ratePct })
   })
 
   test('bậc đại lý là wholesale, không có mức theo sản phẩm', async () => {
@@ -123,7 +144,7 @@ describe('getTier', () => {
     const t = await getTier(admin, tier.id)
     expect(t.kind).toBe('wholesale')
     expect(t.byProduct).toEqual({})
-    expect(Object.values(t.byCategory).sort((a, b) => a - b)).toEqual([5, 6, 8, 10, 12])
+    expect(Object.values(t.byCategory).sort((a, b) => a - b)).toEqual(CATEGORIES.map((c) => c.rates.dai_ly).sort((a, b) => a - b))
   })
 
   test('bậc không tồn tại → ném lỗi', async () => {

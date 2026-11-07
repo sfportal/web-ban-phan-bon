@@ -14,9 +14,9 @@ export type Database = {
   public: {
     Tables: {
       categories: {
-        Row: { id: string; name: string; sort_order: number }
-        Insert: { id?: string; name: string; sort_order?: number }
-        Update: { id?: string; name?: string; sort_order?: number }
+        Row: { id: string; name: string; sort_order: number; slug: string | null; image_url: string | null }
+        Insert: { id?: string; name: string; sort_order?: number; slug?: string | null; image_url?: string | null }
+        Update: { id?: string; name?: string; sort_order?: number; slug?: string | null; image_url?: string | null }
         Relationships: []
       }
       products: {
@@ -32,6 +32,13 @@ export type Database = {
           is_active: boolean
           description: string | null
           updated_price_at: string
+          brand: string | null
+          short_desc: string | null
+          composition: string | null
+          benefits: string | null
+          usage: string | null
+          crops: string[]
+          is_featured: boolean
         }
         Insert: {
           id?: string
@@ -45,6 +52,13 @@ export type Database = {
           is_active?: boolean
           description?: string | null
           updated_price_at?: string
+          brand?: string | null
+          short_desc?: string | null
+          composition?: string | null
+          benefits?: string | null
+          usage?: string | null
+          crops?: string[]
+          is_featured?: boolean
         }
         Update: {
           id?: string
@@ -58,6 +72,13 @@ export type Database = {
           is_active?: boolean
           description?: string | null
           updated_price_at?: string
+          brand?: string | null
+          short_desc?: string | null
+          composition?: string | null
+          benefits?: string | null
+          usage?: string | null
+          crops?: string[]
+          is_featured?: boolean
         }
         Relationships: [
           {

@@ -4,10 +4,11 @@ import { submitPartnerOrder, submitRetailOrder } from '@/lib/orders/actions'
 import { cancelMyOrder, editMyOrder } from '@/lib/orders/edit'
 import type { SeenLine } from '@/lib/orders/submit'
 import {
-  adminClient, asUser, createPartner, insertFarmerFor, redirectTarget, resetData, toStatus, type TestPartner,
+  adminClient, asUser, createPartner, insertFarmerFor, pricedPair, redirectTarget, resetData, toStatus, type TestPartner,
 } from './helpers'
 
-// P1: HC-VISINH 350.000đ, P2: HC-PHANBO 120.000đ — nhóm "Phân hữu cơ" (CTV chuẩn 5%, Đại lý cấp 1 8%).
+// P1 350.000đ, P2 120.000đ — hai sản phẩm seed cùng nhóm hữu cơ (CTV chuẩn 5%, Đại lý cấp 1 8%), xem pricedPair().
+let restorePrices: () => Promise<void>
 let P1: string
 let P2: string
 let ctv: TestPartner
@@ -20,11 +21,6 @@ let FOther: string
 const l = (productId: string, qty: number, farmerId: string | null, seenSalePrice: number): SeenLine => ({
   productId, qty, farmerId, seenSalePrice,
 })
-
-async function productId(sku: string): Promise<string> {
-  const { data } = await adminClient().from('products').select('id').eq('sku', sku).single().throwOnError()
-  return data.id
-}
 
 async function newOrder(p: TestPartner, lines: SeenLine[]): Promise<string> {
   const res = await asUser(p, () =>
@@ -42,8 +38,7 @@ async function load(id: string) {
 
 beforeAll(async () => {
   await resetData()
-  P1 = await productId('HC-VISINH')
-  P2 = await productId('HC-PHANBO')
+  ;({ P1, P2, restore: restorePrices } = await pricedPair())
   ;[ctv, other, dl] = await Promise.all([
     createPartner({ kind: 'commission' }),
     createPartner({ kind: 'commission' }),
@@ -60,6 +55,7 @@ afterEach(async () => {
 
 afterAll(async () => {
   await resetData()
+  await restorePrices()
 })
 
 describe('cancelMyOrder', () => {

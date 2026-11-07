@@ -2,11 +2,14 @@ import { expect, test } from '@playwright/test'
 import {
   addProduct, adminPage, approvePartner, currentPeriodLabel, orderIdFromUrl, registerPartner, uniquePhone, vnd,
 } from './helpers'
+import { category, OVERRIDE, product, productsIn } from '../support/dataset'
 
-// Seed "CTV chuẩn": Phân NPK 3%, riêng "Phân bón lá Dưỡng trái to" 10%.
-const NPK = { name: 'Phân NPK 16-16-8 Đầu Trâu', price: 850_000, rate: 3 }
-const LA = { name: 'Phân bón lá Dưỡng trái to', price: 145_000, rate: 10 }
-const ROONG = 'Phân bón lá Ra rễ cực mạnh'
+// Seed "CTV chuẩn": tỷ lệ theo nhóm, riêng sản phẩm OVERRIDE có mức theo sản phẩm (gen-seed).
+const npk = productsIn('npk')[0]
+const la = product(OVERRIDE.sku)
+const NPK = { name: npk.name, price: npk.list_price, rate: category('npk').rates.ctv }
+const LA = { name: la.name, price: la.list_price, rate: OVERRIDE.ratePct }
+const ROONG = productsIn('phan-bon-la').find((p) => p.sku !== OVERRIDE.sku)!.name
 
 test('CTV đăng ký → được duyệt → lên đơn cho 2 nông dân → đơn thu đủ tiền → thấy hoa hồng kỳ này', async ({ page, browser }) => {
   const phone = uniquePhone()

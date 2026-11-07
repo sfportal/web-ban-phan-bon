@@ -10,6 +10,9 @@ import {
   seededTierId, type TestUser,
 } from './helpers'
 import { phoneToEmail } from '@/lib/phone'
+import { category } from '../support/dataset'
+
+const NPK_CTV = category('npk').rates.ctv
 
 let admin: TestUser
 let staff: TestUser
@@ -36,7 +39,7 @@ beforeAll(async () => {
   await resetData()
   ;[admin, staff] = await Promise.all([createStaff('admin'), createStaff('staff')])
   const db = adminClient()
-  npkId = (await db.from('categories').select('id').eq('name', 'Phân NPK').single().throwOnError()).data.id
+  npkId = (await db.from('categories').select('id').eq('slug', 'npk').single().throwOnError()).data.id
   productId = (await db.from('products').select('id').order('sku').limit(1).single().throwOnError()).data.id
   commissionTier = await seededTierId('commission')
   wholesaleTier = await seededTierId('wholesale')
@@ -99,12 +102,12 @@ describe('saveRateGrid', () => {
     expect(await rate(commissionTier, npkId)).toBe(7.25)
     expect(await asUser(admin, () => saveRateGrid(commissionTier, { [npkId]: null }))).toEqual({ status: 'ok' })
     expect(await rate(commissionTier, npkId)).toBeNull()
-    await asUser(admin, () => saveRateGrid(commissionTier, { [npkId]: 3 }))
+    await asUser(admin, () => saveRateGrid(commissionTier, { [npkId]: NPK_CTV }))
   })
 
   test('staff thường bị chặn', async () => {
     expect(await redirectTarget(asUser(staff, () => saveRateGrid(commissionTier, { [npkId]: 50 })))).toBe('/')
-    expect(await rate(commissionTier, npkId)).toBe(3)
+    expect(await rate(commissionTier, npkId)).toBe(NPK_CTV)
   })
 
   test('saveProductRate lưu/xóa/từ chối', async () => {

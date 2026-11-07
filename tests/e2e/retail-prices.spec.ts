@@ -3,13 +3,15 @@ import path from 'node:path'
 import { parseEnv } from 'node:util'
 import { expect, test, type Page } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
+import { productsIn } from '../support/dataset'
 import { uniquePhone, vnd } from './helpers'
 
 // Mỗi project (desktop / mobile) dùng sản phẩm riêng, không trùng spec khác, vì test sửa giá trong DB.
-const PRODUCTS = {
-  desktop: { sku: 'VT-BINHXIT', name: 'Bình xịt điện 20 lít', price: 780_000 },
-  mobile: { sku: 'BVTV-NAM', name: 'Thuốc trừ nấm Anvil 5SC', price: 210_000 },
-} as const
+const seed = (slug: string, i: number) => {
+  const p = productsIn(slug)[i]
+  return { sku: p.sku, name: p.name, price: p.list_price }
+}
+const PRODUCTS = { desktop: seed('vat-tu', 0), mobile: seed('thuoc-bvtv', 0) } as const
 
 function db() {
   const file = path.resolve(process.cwd(), '.env.local')

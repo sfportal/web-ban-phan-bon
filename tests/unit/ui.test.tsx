@@ -22,6 +22,16 @@ describe('Button', () => {
     render(<Button size="lg">Đặt hàng</Button>)
     expect(screen.getByRole('button', { name: 'Đặt hàng' }).className).toContain('h-[52px]')
   })
+  test('href + disabled → span không bấm, không focus được', () => {
+    render(<Button href="/dat-hang" disabled>Đặt hàng</Button>)
+    expect(screen.queryByRole('link')).toBeNull()
+    const el = screen.getByText('Đặt hàng')
+    expect(el.tagName).toBe('SPAN')
+    expect(el.getAttribute('aria-disabled')).toBe('true')
+    expect(el.hasAttribute('href')).toBe(false)
+    expect(el.hasAttribute('tabindex')).toBe(false)
+    expect(el.className).toContain('h-11')
+  })
   test('variant danger và type submit giữ nguyên', () => {
     render(<Button variant="danger" type="submit">Xóa</Button>)
     const btn = screen.getByRole('button', { name: 'Xóa' })

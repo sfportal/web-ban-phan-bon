@@ -10,12 +10,20 @@ const INK = '#1c1917'
 const PAPER = '#ffffff'
 
 // maxChars ≈ (bề rộng nhãn − lề) / 5,6 — độ rộng trung bình một ký tự đậm cỡ 9,5.
-const GEOMETRY: Record<PackageShape, Geometry> = {
+export const PACKAGE_GEOMETRY: Record<PackageShape, Geometry> = {
   bag: { label: { x: 50, y: 58, w: 100, h: 118 }, unitY: 201, maxChars: 16 },
   bottle: { label: { x: 56, y: 86, w: 88, h: 100 }, unitY: 206, maxChars: 13 },
   pouch: { label: { x: 58, y: 64, w: 84, h: 108 }, unitY: 195, maxChars: 13 },
   roll: { label: { x: 60, y: 66, w: 80, h: 104 }, unitY: 194, maxChars: 12 },
   box: { label: { x: 50, y: 86, w: 90, h: 98 }, unitY: 204, maxChars: 14 },
+}
+
+// Lưới an toàn: chữ ước tính rộng hơn nhãn (ký tự rộng như W, M) thì ép vừa bề rộng.
+const CHAR_EM = 0.6
+function fit(text: string, fontSize: number, maxWidth: number) {
+  return text.length * fontSize * CHAR_EM > maxWidth
+    ? { textLength: maxWidth, lengthAdjust: 'spacingAndGlyphs' as const }
+    : {}
 }
 
 function Body({ shape, band, fg }: { shape: PackageShape; band: string; fg: string }) {
@@ -105,11 +113,12 @@ export function PackageArt({
 }) {
   const shape = packageShape(unit ?? '')
   const colors = categoryColors(categorySlug ?? null)
-  const { label, unitY, maxChars } = GEOMETRY[shape]
+  const { label, unitY, maxChars } = PACKAGE_GEOMETRY[shape]
   const lines = shortLabel(name, maxChars)
   const brandLine = brand ? oneLine(brand, maxChars + 3) : null
   const npk = npkRatio(name)
   const cx = label.x + label.w / 2
+  const textWidth = label.w - 8
   const npkSize = npk ? Math.min(22, (label.w - 12) / (npk.length * 0.6)) : 0
   const unitText = unit ? oneLine(unit, maxChars + 2) : null
 
@@ -127,13 +136,13 @@ export function PackageArt({
 
       <rect x={label.x} y={label.y} width={label.w} height={label.h} rx="6" fill={PAPER} />
       {brandLine && (
-        <text x={cx} y={label.y + 15} textAnchor="middle" fontSize="8" fontWeight="600" fill={colors.band}>
+        <text x={cx} y={label.y + 15} textAnchor="middle" fontSize="8" fontWeight="600" fill={colors.band} {...fit(brandLine, 8, textWidth)}>
           {brandLine}
         </text>
       )}
       <path d={`M${label.x + 10} ${label.y + 22} H${label.x + label.w - 10}`} stroke={colors.band} strokeOpacity="0.35" />
       {lines.map((line, i) => (
-        <text key={i} x={cx} y={label.y + 38 + i * 13} textAnchor="middle" fontSize="9.5" fontWeight="700" fill={INK}>
+        <text key={i} x={cx} y={label.y + 38 + i * 13} textAnchor="middle" fontSize="9.5" fontWeight="700" fill={INK} {...fit(line, 9.5, textWidth)}>
           {line}
         </text>
       ))}
@@ -146,7 +155,7 @@ export function PackageArt({
       )}
 
       {unitText && (
-        <text x={cx} y={unitY} textAnchor="middle" fontSize="10" fontWeight="700" fill={PAPER}>
+        <text x={cx} y={unitY} textAnchor="middle" fontSize="10" fontWeight="700" fill={PAPER} {...fit(unitText, 10, textWidth)}>
           {unitText}
         </text>
       )}

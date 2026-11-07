@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, test } from 'vitest'
-import { PackageArt } from '@/components/PackageArt'
+import { PACKAGE_GEOMETRY, PackageArt } from '@/components/PackageArt'
 import { ProductImage } from '@/components/ProductImage'
 import { categoryColors, npkRatio, oneLine, packageShape, shortLabel } from '@/lib/media/package-art'
 
@@ -98,6 +98,32 @@ describe('PackageArt', () => {
     const html = renderToStaticMarkup(<PackageArt name="Sản phẩm thử" brand="Hãng" unit={unit} categorySlug="vat-tu" />)
     expect(html).toContain(`data-shape="${packageShape(unit)}"`)
     expect(html).toContain('Hãng')
+  })
+})
+
+describe('PackageArt: chữ dài không tràn nhãn', () => {
+  const longName = 'Phân bón hữu cơ vi sinh cao cấp chuyên dùng cho cây ăn trái WWWWWWWWWWWWWWWWWW'
+  const longBrand = 'Công ty Cổ phần Phân bón Miền Nam WWWWWWWWWWWW'
+  const units = { bag: 'bao 50kg WWWWWWWWWWWWWWWWWWWWWW', bottle: 'chai 1 lít WWWWWWWWWWWWWWWWW', pouch: 'gói 50g WWWWWWWWWWWWWWWWWWWW', roll: 'cuộn 400m WWWWWWWWWWWWWWWWWWW', box: 'cái WWWWWWWWWWWWWWWWWWWWWWWWWW' }
+  test.each(Object.entries(units))('%s', (shape, unit) => {
+    const html = renderToStaticMarkup(<PackageArt name={longName} brand={longBrand} unit={unit} categorySlug="huu-co" />)
+    expect(html).toContain(`data-shape="${shape}"`)
+    const { label, maxChars } = PACKAGE_GEOMETRY[shape as keyof typeof PACKAGE_GEOMETRY]
+    const texts = [...html.matchAll(/<text([^>]*)>([^<]*)<\/text>/g)]
+    expect(texts.length).toBeGreaterThanOrEqual(4)
+    for (const [, attrs, content] of texts) {
+      expect(content.length, content).toBeLessThanOrEqual(maxChars + 3)
+      const fontSize = Number(attrs.match(/font-size="([\d.]+)"/)![1])
+      const estimated = content.length * fontSize * 0.6
+      const textLength = attrs.match(/textLength="([\d.]+)"/)?.[1]
+      if (estimated > label.w - 8) {
+        expect(textLength, `"${content}" cần textLength`).toBeDefined()
+        expect(Number(textLength)).toBeLessThanOrEqual(label.w - 8)
+        expect(attrs).toContain('lengthAdjust="spacingAndGlyphs"')
+      } else {
+        expect(textLength, `"${content}" không cần ép`).toBeUndefined()
+      }
+    }
   })
 })
 

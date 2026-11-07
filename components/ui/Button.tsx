@@ -26,13 +26,24 @@ export function buttonClass({ variant = 'primary', size = 'md', className = '' }
 }
 
 type Common = { variant?: ButtonVariant; size?: ButtonSize; className?: string; children?: ReactNode; asChild?: never }
-type LinkButtonProps = Common & { href: string } & Omit<ComponentProps<typeof Link>, 'href' | 'className' | 'children'>
+type LinkButtonProps = Common & {
+  href: string
+  /** Liên kết bị khóa: hiện dạng nút mờ (span, không href, không nhận focus). */
+  disabled?: boolean
+} & Omit<ComponentProps<typeof Link>, 'href' | 'className' | 'children'>
 type NativeButtonProps = Common & { href?: undefined } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'children'>
 
-/** Nút chuẩn; có `href` thì là liên kết (next/link) mang dáng nút. */
+/** Nút chuẩn; có `href` thì là liên kết (next/link) mang dáng nút, kèm `disabled` thì thành span mờ. */
 export function Button(props: LinkButtonProps | NativeButtonProps) {
   if (props.href !== undefined) {
-    const { variant, size, className, children, href, ...rest } = props
+    const { variant, size, className, children, href, disabled, ...rest } = props
+    if (disabled) {
+      return (
+        <span aria-disabled="true" className={buttonClass({ variant, size, className })}>
+          {children}
+        </span>
+      )
+    }
     return (
       <Link href={href} className={buttonClass({ variant, size, className })} {...rest}>
         {children}

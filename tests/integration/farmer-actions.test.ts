@@ -52,6 +52,19 @@ describe('addFarmer', () => {
     expect((await farmerRow(phone))!.owner_partner_id).toBe(other.partnerId)
   })
 
+  test('"+84 0…" cùng người với SĐT nội địa → owned_by_other, không tạo nông dân thứ hai', async () => {
+    const phone = randomPhone()
+    await insertFarmerFor(other.partnerId, phone)
+    const intl = `+84 ${phone.slice(0, 4)} ${phone.slice(4, 7)} ${phone.slice(7)}`
+    expect(await asUser(ctv, () => addFarmer({ phone: intl, name: 'Chị Lan' }))).toEqual({ status: 'owned_by_other' })
+    expect(await farmerRow(`0${phone}`)).toBeNull()
+  })
+
+  test('DB từ chối SĐT dạng 00…', async () => {
+    const { error } = await adminClient().from('farmers').insert({ phone: '00912345678', name: 'X' })
+    expect(error?.message).toContain('farmers_phone_check')
+  })
+
   test('SĐT sai → invalid_phone; thiếu tên → missing_fields', async () => {
     expect(await asUser(ctv, () => addFarmer({ phone: '12345', name: 'A' }))).toEqual({ status: 'invalid_phone' })
     expect(await asUser(ctv, () => addFarmer({ phone: randomPhone(), name: '   ' }))).toEqual({ status: 'missing_fields' })

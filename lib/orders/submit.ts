@@ -155,6 +155,8 @@ const retailInput = z.object({
   paymentMethod: z.enum(['cod', 'transfer']),
   note: optionalNote,
   honeypot: z.string().optional(),
+  /** Khách đã thấy thay đổi giá và bấm "Đồng ý và gửi lại". */
+  acceptChanges: z.boolean().optional(),
 })
 
 /** Kiểm tra mảng dòng hàng trình duyệt gửi (dùng cho sửa đơn); sai dạng → null. */
@@ -323,7 +325,7 @@ export async function submitRetailOrder(raw: RetailOrderInput): Promise<SubmitRe
   const result = await priceAndDiff({
     lines: input.lines.map((l) => ({ ...l, farmerId: farmer.id })),
     tierId,
-    acceptChanges: false,
+    acceptChanges: input.acceptChanges ?? false,
   })
   if (result.status !== 'ok') return result
 

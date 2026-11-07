@@ -283,6 +283,25 @@ describe('submitRetailOrder', () => {
     expect(b.status).toBe('ok')
   })
 
+  test('đơn lẻ: giá đổi, khách đồng ý (acceptChanges) → ok theo giá server', async () => {
+    const input = retail({ lines: [r(P1, 2, 300000)] })
+    const a = await asUser(null, () => submitRetailOrder(input), { ip: '198.51.100.4' })
+    expect(a.status).toBe('changed')
+    const o = await order(await asUser(null, () => submitRetailOrder({ ...input, acceptChanges: true }), { ip: '198.51.100.4' }))
+    expect(o).toMatchObject({ subtotal: 700000 })
+  })
+
+  test('đơn lẻ: acceptChanges không cứu được sản phẩm hết hàng → unavailable', async () => {
+    await setProduct(P2, { in_stock: false })
+    try {
+      const res = await asUser(null, () =>
+        submitRetailOrder(retail({ lines: [r(P2, 1, 120000)], acceptChanges: true })), { ip: '198.51.100.5' })
+      expect(res).toEqual({ status: 'error', error: 'unavailable' })
+    } finally {
+      await setProduct(P2, { in_stock: true })
+    }
+  })
+
   test('đơn lẻ lần thứ 4 trong 10 phút → rate_limited', async () => {
     const phone = randomPhone()
     for (let i = 0; i < 3; i++) {

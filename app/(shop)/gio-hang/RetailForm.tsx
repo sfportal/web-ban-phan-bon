@@ -8,7 +8,6 @@ import type { CatalogProduct } from '@/lib/catalog/queries'
 import { formatVnd } from '@/lib/format'
 import { submitRetailOrder } from '@/lib/orders/actions'
 import type { Change, SubmitError } from '@/lib/orders/submit'
-import { salePrice, type PromotionInput } from '@/lib/pricing'
 
 const subscribeNoop = () => () => {}
 
@@ -41,8 +40,11 @@ function describeChange(c: Change, name: string): string {
 const field = 'h-12 w-full rounded-lg border border-gray-300 px-3 text-base'
 const labelCls = 'flex flex-col gap-1 font-semibold'
 
-/** Form đặt hàng của khách lẻ, đặt dưới giỏ hàng. Server tính lại toàn bộ giá. */
-export function RetailForm({ products, promos }: { products: CatalogProduct[]; promos: PromotionInput[] }) {
+/**
+ * Form đặt hàng của khách lẻ, đặt dưới giỏ hàng. `prices` là giá bán server tính lúc tải trang;
+ * server vẫn tính lại khi gửi. Có thay đổi → hiện danh sách và nút "Đồng ý và gửi lại".
+ */
+export function RetailForm({ products, prices }: { products: CatalogProduct[]; prices: Record<string, number> }) {
   const router = useRouter()
   const { items, clear } = useCart()
   const hydrated = useSyncExternalStore(subscribeNoop, () => true, () => false)
@@ -54,10 +56,9 @@ export function RetailForm({ products, promos }: { products: CatalogProduct[]; p
   // Giữ cùng client_key cho mọi lần gửi lại của một đơn (chống tạo trùng khi bấm lại).
   const clientKey = useRef<string | null>(null)
 
-  const now = new Date()
   const lines = items.flatMap(({ productId, qty }) => {
     const p = byId.get(productId)
-    return p && p.inStock ? [{ productId, qty, seenSalePrice: salePrice(p, promos, now).price }] : []
+    return p && p.inStock ? [{ productId, qty, seenSalePrice: prices[productId] ?? p.listPrice }] : []
   })
 
   if (!hydrated || items.length === 0) return null
@@ -67,6 +68,8 @@ export function RetailForm({ products, promos }: { products: CatalogProduct[]; p
     if (pending) return
     const form = new FormData(e.currentTarget)
     const text = (k: string) => String(form.get(k) ?? '')
+    // Đang hiện thay đổi → lần bấm này là "Đồng ý và gửi lại".
+    const acceptChanges = changes !== null
     setError(null)
     setChanges(null)
     clientKey.current ??= newClientKey()
@@ -82,6 +85,7 @@ export function RetailForm({ products, promos }: { products: CatalogProduct[]; p
           note: text('note'),
           paymentMethod,
           honeypot: text('website'),
+          acceptChanges,
         })
         if (res.status === 'ok') {
           clientKey.current = null
@@ -157,7 +161,7 @@ export function RetailForm({ products, promos }: { products: CatalogProduct[]; p
               <li key={c}>{c}</li>
             ))}
           </ul>
-          <p>Giỏ hàng đã cập nhật theo giá mới. Vui lòng kiểm tra rồi bấm Đặt hàng lần nữa.</p>
+          <p>Giỏ hàng đã cập nhật theo giá mới. Kiểm tra lại rồi bấm &quot;Đồng ý và gửi lại&quot;.</p>
         </div>
       )}
       {error && (
@@ -169,9 +173,11 @@ export function RetailForm({ products, promos }: { products: CatalogProduct[]; p
       <button
         type="submit"
         disabled={pending || lines.length === 0}
-        className="flex h-12 items-center justify-center rounded-lg bg-green-700 px-5 text-lg font-semibold text-white disabled:opacity-50"
+        className={`flex h-12 items-center justify-center rounded-lg px-5 text-lg font-semibold text-white disabled:opacity-50 ${changes ? 'bg-amber-600' : 'bg-green-700'}`}
       >
-        {pending ? 'Đang gửi đơn...' : <span>Đặt hàng · <Money value={total} /></span>}
+        {pending ? 'Đang gửi đơn...' : changes
+          ? <span>Đồng ý và gửi lại · <Money value={total} /></span>
+          : <span>Đặt hàng · <Money value={total} /></span>}
       </button>
     </form>
   )

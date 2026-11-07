@@ -4,19 +4,17 @@ import Link from 'next/link'
 import { useMemo, useSyncExternalStore } from 'react'
 import { useCart } from '@/lib/cart/use-cart'
 import type { CatalogProduct } from '@/lib/catalog/queries'
-import { salePrice, type PromotionInput } from '@/lib/pricing'
 import { Money } from './Money'
 import { ProductImage } from './ProductImage'
 import { QtyStepper } from './QtyStepper'
 
 const subscribeNoop = () => () => {}
 
-/** Giỏ hàng: danh sách dòng, chỉnh số lượng, tổng tiền theo giá bán hiện tại. */
-export function CartView({ products, promos }: { products: CatalogProduct[]; promos: PromotionInput[] }) {
+/** Giỏ hàng: danh sách dòng, chỉnh số lượng, tổng tiền theo giá bán server đã tính (`prices`). */
+export function CartView({ products, prices }: { products: CatalogProduct[]; prices: Record<string, number> }) {
   const { items, setQty, remove } = useCart()
   // Giỏ đọc từ localStorage chỉ có sau khi hydrate; tránh nháy "giỏ trống".
   const hydrated = useSyncExternalStore(subscribeNoop, () => true, () => false)
-  const now = useMemo(() => new Date(), [])
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products])
 
   if (!hydrated) return <p className="py-8 text-center text-gray-600">Đang tải giỏ hàng...</p>
@@ -34,7 +32,7 @@ export function CartView({ products, promos }: { products: CatalogProduct[]; pro
   const rows = items.map(({ productId, qty }) => {
     const product = byId.get(productId)
     if (!product) return { productId, qty, product: null, unitPrice: 0, orderable: false }
-    const unitPrice = salePrice(product, promos, now).price
+    const unitPrice = prices[product.id] ?? product.listPrice
     const orderable = product.inStock
     return { productId, qty, product, unitPrice, orderable }
   })

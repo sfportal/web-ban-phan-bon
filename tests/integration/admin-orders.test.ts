@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs'
-import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { commissionReport, exportCommissions, markCommissionsPaid } from '@/lib/admin/commission-actions'
 import { bulkSetStatus, dashboardStats, exportOrders, setOrderStatus, staffEditOrder } from '@/lib/admin/orders-actions'
 import { exportAll, saveSettings } from '@/lib/admin/settings-actions'
@@ -8,6 +8,24 @@ import {
   adminClient, asUser, createOrderRpc, createPartner, createStaff, insertFarmerFor, orderInStatus,
   redirectTarget, resetData, sampleLine, toStatus, type TestPartner, type TestUser,
 } from './helpers'
+
+// Giả lập lỗi bất ngờ (không phải lỗi chuyển trạng thái) của change_order_status cho một đơn.
+const failing = vi.hoisted(() => ({ orderId: '' }))
+vi.mock('@/lib/supabase/admin', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/supabase/admin')>()
+  return {
+    adminClient: () => {
+      const client = actual.adminClient()
+      const rpc = client.rpc.bind(client) as unknown as (fn: string, args?: Record<string, unknown>, opts?: unknown) => unknown
+      const wrapped = (fn: string, args?: Record<string, unknown>, opts?: unknown) =>
+        fn === 'change_order_status' && failing.orderId && args?.p_order_id === failing.orderId
+          ? Promise.resolve({ data: null, error: { message: 'connection reset' } })
+          : rpc(fn, args, opts)
+      client.rpc = wrapped as unknown as typeof client.rpc
+      return client
+    },
+  }
+})
 
 let admin: TestUser
 let staff: TestUser
@@ -77,6 +95,24 @@ describe('setOrderStatus / bulkSetStatus', () => {
     expect([await status(a), await status(b), await status(c)]).toEqual(['confirmed', 'shipping', 'confirmed'])
   })
 
+  test('lỗi bất ngờ ở một đơn → code error, các đơn sau vẫn được đổi', async () => {
+    const a = await orderInStatus('new')
+    const b = await orderInStatus('new')
+    const c = await orderInStatus('new')
+    failing.orderId = b
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const res = await asUser(staff, () => bulkSetStatus([a, b, c], 'confirmed'))
+      expect(res.ok.sort()).toEqual([a, c].sort())
+      expect(res.failed).toEqual([{ id: b, code: 'error' }])
+      expect(logged).toHaveBeenCalled()
+    } finally {
+      failing.orderId = ''
+      logged.mockRestore()
+    }
+    expect([await status(a), await status(b), await status(c)]).toEqual(['confirmed', 'new', 'confirmed'])
+  })
+
   test('id không tồn tại / sai dạng → failed, không throw', async () => {
     const res = await asUser(staff, () => bulkSetStatus([crypto.randomUUID(), 'abc'], 'confirmed'))
     expect(res.ok).toEqual([])
@@ -138,6 +174,19 @@ describe('staffEditOrder', () => {
     expect(order.partner_payable).not.toBeNull()
     expect(order.partner_payable!).toBeLessThanOrEqual(order.subtotal)
     expect(order.commission_expected).toBe(0)
+  })
+
+  test('đơn lẻ: mỗi dòng phải giữ nông dân của chính dòng đó', async () => {
+    const [x, y] = [await insertFarmerFor(null), await insertFarmerFor(null)]
+    const { data: two } = await adminClient().from('products').select('id, list_price').order('sku').limit(2).throwOnError()
+    const { id } = await createOrderRpc({}, [
+      await sampleLine({ farmer_id: x }),
+      await sampleLine({ farmer_id: y, product_id: two[1].id, list_price_snap: two[1].list_price, sale_price_snap: two[1].list_price, line_total: two[1].list_price }),
+    ])
+    // Đổi chéo nông dân giữa hai dòng → từ chối dù cả hai đều có trong đơn.
+    expect(await asUser(staff, () => staffEditOrder(id, [editLine({ farmerId: y }), editLine({ productId: two[1].id, farmerId: x })], true)))
+      .toEqual({ status: 'error', error: 'farmer_not_owned' })
+    expect((await asUser(staff, () => staffEditOrder(id, [editLine({ farmerId: x }), editLine({ productId: two[1].id, farmerId: y })], true))).status).toBe('ok')
   })
 
   test('đơn lẻ không gắn CTV: giá lẻ, giữ nông dân cũ của đơn', async () => {
@@ -271,6 +320,22 @@ describe('saveSettings', () => {
     expect(await value('bank_info')).toBeUndefined()
     expect(await value('zalo_link')).toBeUndefined()
     expect(await value('telegram_chat_id')).toBeUndefined()
+  })
+
+  test('giá trị quá dài → invalid, không xóa/sửa giá trị đang lưu', async () => {
+    expect(await asUser(admin, () => saveSettings(form(full)))).toEqual({ status: 'ok' })
+    const res = await asUser(admin, () => saveSettings(form({ ...full, store_name: 'x'.repeat(121), holder: 'y'.repeat(121) })))
+    expect(res).toEqual({ status: 'invalid', message: 'Tối đa 120 ký tự' })
+    expect(await value('store_name')).toBe('Đại lý Phân bón Hòa')
+    expect(await value('bank_info')).toEqual({ bank: 'Vietcombank', account: '0123456789', holder: 'NGUYEN VAN HOA' })
+  })
+
+  test('giữ khóa bank_info khác (vd branch); thay khóa cùng nghĩa kiểu cũ', async () => {
+    await adminClient().from('settings').upsert({ key: 'bank_info', value: { bank_name: 'ACB', branch: 'CN Đắk Lắk' } }).throwOnError()
+    expect(await asUser(admin, () => saveSettings(form(full)))).toEqual({ status: 'ok' })
+    expect(await value('bank_info')).toEqual({ bank: 'Vietcombank', account: '0123456789', holder: 'NGUYEN VAN HOA', branch: 'CN Đắk Lắk' })
+    expect(await asUser(admin, () => saveSettings(form({ ...full, bank: '', account: '', holder: '' })))).toEqual({ status: 'ok' })
+    expect(await value('bank_info')).toBeUndefined()
   })
 
   test('từ chối email sai, link Zalo không phải http(s); nhân viên thường bị chặn', async () => {

@@ -23,6 +23,7 @@ export type OrderRow = {
 const ERROR_LABEL: Record<string, string> = {
   invalid_transition: 'không chuyển được từ trạng thái hiện tại',
   not_found: 'không tìm thấy đơn',
+  error: 'lỗi hệ thống, hãy thử lại',
 }
 const ORDER = Object.keys(STATUS_LABEL) as OrderStatus[]
 

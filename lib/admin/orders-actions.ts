@@ -46,9 +46,15 @@ export async function bulkSetStatus(
   const ok: string[] = []
   const failed: { id: string; code: string }[] = []
   for (const id of [...new Set(ids)]) {
-    const res = await changeStatus(userId, id, to, null)
-    if ('ok' in res) ok.push(id)
-    else failed.push({ id: String(id), code: res.error })
+    try {
+      const res = await changeStatus(userId, id, to, null)
+      if ('ok' in res) ok.push(id)
+      else failed.push({ id: String(id), code: res.error })
+    } catch (e) {
+      // Lỗi bất ngờ (mạng/DB) của một đơn không được làm dừng các đơn còn lại.
+      console.error('bulkSetStatus: lỗi đổi trạng thái đơn', id, e)
+      failed.push({ id: String(id), code: 'error' })
+    }
   }
   return { ok, failed }
 }
@@ -86,9 +92,11 @@ export async function staffEditOrder(orderId: string, lines: SeenLine[], acceptC
     }
     pricingTier = tierId
   } else {
-    const { data: current } = await db.from('order_lines').select('farmer_id').eq('order_id', order.id).throwOnError()
-    const allowed = new Set(current.map((l) => l.farmer_id))
-    if (parsed.some((l) => !allowed.has(l.farmerId))) return { status: 'error', error: 'farmer_not_owned' }
+    // Mỗi dòng giữ nông dân của chính dòng đó trong đơn (khớp theo sản phẩm).
+    const { data: current } = await db.from('order_lines').select('product_id, farmer_id').eq('order_id', order.id).throwOnError()
+    const farmersOf = new Map<string, Set<string | null>>()
+    for (const l of current) farmersOf.set(l.product_id, (farmersOf.get(l.product_id) ?? new Set()).add(l.farmer_id))
+    if (parsed.some((l) => !farmersOf.get(l.productId)?.has(l.farmerId))) return { status: 'error', error: 'farmer_not_owned' }
     // Như submitRetailOrder: khách của CTV tính hoa hồng theo bậc CTV; đại lý không có hoa hồng đơn lẻ.
     pricingTier = kind === 'commission' ? tierId : null
   }

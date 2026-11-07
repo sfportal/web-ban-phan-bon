@@ -12,7 +12,7 @@ import { fetchAll } from '@/lib/supabase/fetch-all'
 
 export type SettingsResult = { status: 'ok' } | { status: 'invalid'; message: string }
 
-const text = (max: number) => z.string().trim().max(max, `Tối đa ${max} ký tự`).catch('')
+const text = (max: number) => z.string().trim().max(max, `Tối đa ${max} ký tự`)
 const schema = z.object({
   store_name: text(120),
   bank: text(120),
@@ -23,6 +23,8 @@ const schema = z.object({
   zalo_link: z.string().trim().max(300).pipe(z.union([z.literal(''), z.string().regex(/^https?:\/\/\S+$/i, 'Link Zalo phải bắt đầu bằng http:// hoặc https://')])),
 })
 
+const BANK_FORM_KEYS = new Set(['bank', 'bank_name', 'account', 'account_number', 'holder', 'account_name'])
+
 export async function saveSettings(form: FormData): Promise<SettingsResult> {
   await requireStaff('admin')
   const raw = Object.fromEntries(Object.keys(schema.shape).map((k) => [k, String(form.get(k) ?? '')]))
@@ -30,17 +32,26 @@ export async function saveSettings(form: FormData): Promise<SettingsResult> {
   if (!parsed.success) return { status: 'invalid', message: parsed.error.issues[0].message }
   const v = parsed.data
 
-  const bank = Object.fromEntries(
-    ([['bank', v.bank], ['account', v.account], ['holder', v.holder]] as const).filter(([, x]) => x !== ''),
-  )
+  const db = adminClient()
+  // Giữ các khóa bank_info khác mà form không có (vd `branch`); khóa form và tên cũ tương đương thì thay.
+  const { data: prev } = await db.from('settings').select('value').eq('key', 'bank_info').maybeSingle().throwOnError()
+  const kept = prev?.value && typeof prev.value === 'object' && !Array.isArray(prev.value)
+    ? Object.fromEntries(Object.entries(prev.value).filter(([k]) => !BANK_FORM_KEYS.has(k)))
+    : {}
+  const bank = {
+    ...Object.fromEntries(
+      ([['bank', v.bank], ['account', v.account], ['holder', v.holder]] as const).filter(([, x]) => x !== ''),
+    ),
+    ...kept,
+  }
   const values: Record<string, Json | null> = {
     store_name: v.store_name || null,
-    bank_info: Object.keys(bank).length ? bank : null,
+    // Cả ba ô trống → ẩn thông tin chuyển khoản (xóa khóa, kể cả khóa phụ như branch).
+    bank_info: v.bank || v.account || v.holder ? bank : null,
     notify_email: v.notify_email || null,
     telegram_chat_id: v.telegram_chat_id || null,
     zalo_link: v.zalo_link || null,
   }
-  const db = adminClient()
   const upserts = Object.entries(values).filter(([, x]) => x !== null).map(([key, value]) => ({ key, value: value! }))
   const deletes = Object.entries(values).filter(([, x]) => x === null).map(([key]) => key)
   if (upserts.length) await db.from('settings').upsert(upserts).throwOnError()

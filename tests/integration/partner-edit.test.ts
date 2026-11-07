@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest'
-import { submitPartnerOrder } from '@/lib/orders/actions'
+import { submitPartnerOrder, submitRetailOrder } from '@/lib/orders/actions'
 import { cancelMyOrder, editMyOrder } from '@/lib/orders/edit'
 import type { SeenLine } from '@/lib/orders/submit'
 import {
@@ -148,5 +148,22 @@ describe('editMyOrder', () => {
     })
     expect(await asUser(ctv, () => editMyOrder(id, [], true))).toEqual({ status: 'error', error: 'empty_order' })
     expect((await load(id)).order_lines).toHaveLength(1)
+  })
+
+  test('đơn lẻ của khách thuộc CTV (R16): CTV không hủy / sửa được, đơn giữ nguyên', async () => {
+    const { data: farmer } = await adminClient().from('farmers').select('phone').eq('id', F1).single().throwOnError()
+    const res = await asUser(null, () => submitRetailOrder({
+      clientKey: randomUUID(), lines: [{ productId: P1, qty: 1, seenSalePrice: 350000 }], name: 'Khách của CTV',
+      phone: farmer.phone, address: 'Krông Pắc', paymentMethod: 'cod',
+    }), { ip: '198.51.100.40' })
+    if (res.status !== 'ok') throw new Error(`không tạo được đơn lẻ: ${JSON.stringify(res)}`)
+    const before = await load(res.orderId)
+    expect(before).toMatchObject({ source: 'retail', partner_id: ctv.partnerId, status: 'new' })
+
+    expect(await asUser(ctv, () => cancelMyOrder(res.orderId))).toEqual({ error: 'not_editable' })
+    expect(await asUser(ctv, () => editMyOrder(res.orderId, [l(P1, 5, F1, 350000)], true))).toEqual({
+      status: 'error', error: 'not_editable',
+    })
+    expect(await load(res.orderId)).toEqual(before)
   })
 })

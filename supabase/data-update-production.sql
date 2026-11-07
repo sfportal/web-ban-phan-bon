@@ -3,6 +3,8 @@ begin;
 -- Cập nhật dữ liệu Supabase bản thật sang bộ sản phẩm thật. Chạy SAU migration 0005, trong SQL Editor.
 -- CHỈ CHẠY MỘT LẦN, khi chuyển bộ sản phẩm mẫu cũ sang bộ dữ liệu này. Đã thêm sản phẩm thật
 -- thì KHÔNG chạy lại: bước 5 xóa mọi sản phẩm không có trong data/products.json và chưa có đơn.
+-- Có sẵn bước 0 chặn chạy lại: dừng nếu có sản phẩm ngoài bộ mới và ngoài 10 sản phẩm mẫu cũ.
+-- Sản phẩm mới thêm có updated_price_at lùi 30 ngày để không hiện hết ở "Đổi giá gần đây".
 -- Không đụng tới đối tác, đơn hàng, cài đặt.
 --  1. Nhóm cũ (theo tên cũ, rồi theo tên mới) được gắn slug, tên, ảnh, thứ tự mới — giữ id.
 --  2. Thêm/cập nhật nhóm theo slug.
@@ -10,6 +12,60 @@ begin;
 --  4. Sản phẩm upsert theo SKU (giữ ảnh, còn hàng, hiển thị của sản phẩm đã có).
 --  5. Sản phẩm có SKU ngoài bộ mới (kể cả sản phẩm thêm tay): có đơn → ẩn; không đơn → xóa
 --     (kèm khuyến mãi theo sản phẩm đó).
+
+-- 0. Chỉ cho chạy một lần: có sản phẩm ngoài bộ mới và ngoài 10 sản phẩm mẫu cũ thì dừng.
+do $guard$
+begin
+  if exists (
+    select 1 from public.products p
+    where p.sku not in (
+  'NPK-DT-20-20-15-50',
+  'NPK-DT-16-16-8-50',
+  'NPK-PM-16-16-8-50',
+  'NPK-CM-16-16-8-50',
+  'NPK-BCC-20-20-15-50',
+  'NPK-VN-16-16-8-50',
+  'URE-PM-46-50',
+  'URE-CM-46-50',
+  'DAP-DV-18-46-50',
+  'KALI-PM-60-50',
+  'LAN-LT-SUPE-50',
+  'HC-SF-TRUNQUE-25',
+  'HC-SF-PHANGA-25',
+  'HC-GANHAT-15',
+  'HC-BACA-DAMCA-1L',
+  'LA-BACA-20-20-20-50G',
+  'LA-BACA-12-52-6-50G',
+  'LA-BOLY-OMNIKELP-1L',
+  'LA-DK-HUMIC-1250',
+  'BVTV-SYN-ANVIL-1L',
+  'BVTV-BAY-NATIVO-120G',
+  'BVTV-SYN-CHESS-20G',
+  'BVTV-FMC-PREVATHON-100',
+  'BVTV-SYN-SOFIT-1L',
+  'BVTV-UPL-TARANG-900',
+  'VT-OSHIMA-BLV16',
+  'VT-PK-MANGPHU-2M2',
+  'VT-SF-DATRAU-20L',
+  'VT-KHAYUOM-104'
+    )
+      and p.sku not in (
+  'NPK-161616',
+  'NPK-201020',
+  'NPK-301010',
+  'HC-VISINH',
+  'HC-PHANBO',
+  'LA-ROONG',
+  'LA-DUONGTRAI',
+  'BVTV-NAM',
+  'BVTV-SAU',
+  'VT-BINHXIT'
+      )
+  ) then
+    raise exception 'Dừng: trong cơ sở dữ liệu có sản phẩm ngoài bộ dữ liệu mới và ngoài 10 sản phẩm mẫu cũ (có thể quản trị viên đã thêm). Script này chỉ chạy một lần khi chuyển dữ liệu; chạy lại sẽ xóa các sản phẩm đó.';
+  end if;
+end
+$guard$;
 
 -- 1. Nhóm cũ → slug mới
 update public.categories c
@@ -90,8 +146,8 @@ join public.categories c on c.slug = v.category
 on conflict (tier_id, category_id) do update set rate_pct = excluded.rate_pct;
 
 -- 4. Sản phẩm theo SKU
-insert into public.products (sku, name, brand, unit, category_id, list_price, short_desc, composition, benefits, usage, crops, is_featured)
-select v.sku, v.name, v.brand, v.unit, c.id, v.list_price, v.short_desc, v.composition, v.benefits, v.usage, v.crops, v.is_featured
+insert into public.products (sku, name, brand, unit, category_id, list_price, short_desc, composition, benefits, usage, crops, is_featured, updated_price_at)
+select v.sku, v.name, v.brand, v.unit, c.id, v.list_price, v.short_desc, v.composition, v.benefits, v.usage, v.crops, v.is_featured, now() - interval '30 days'
 from (values
   ('NPK-DT-20-20-15-50', 'Phân NPK Đầu Trâu 20-20-15+TE', 'Bình Điền (Đầu Trâu)', 'bao 50kg', 'npk', 910000, 'NPK hàm lượng cao, cân đối đạm – lân – kali, kèm vi lượng; hợp bón thúc lúa, rau màu và cây ăn trái.', 'Đạm (N) 20% – Lân (P₂O₅) 20% – Kali (K₂O) 15%, bổ sung trung vi lượng (TE).', E'Tổng dinh dưỡng 55%, bón ít mà đủ chất.\nĐạm và lân cao giúp cây đẻ nhánh, ra rễ, phát lộc nhanh.\nKali hỗ trợ cứng cây, nuôi hạt và trái.\nVi lượng đi kèm giúp lá xanh bền, hạn chế vàng lá.', E'Lúa: bón thúc 100–150 kg/ha mỗi lần, giai đoạn đẻ nhánh và làm đòng.\nRau màu: 300–500 kg/ha/vụ, chia 3–4 lần.\nCà phê, sầu riêng, cây ăn trái: 0,5–1,5 kg/cây/lần, 3–4 lần/năm tùy tuổi cây.\nRải quanh tán, lấp nhẹ và tưới ẩm sau khi bón.', array['Lúa', 'Rau màu', 'Cà phê', 'Sầu riêng', 'Cây ăn trái']::text[], true),
   ('NPK-DT-16-16-8-50', 'Phân NPK Đầu Trâu 16-16-8+TE', 'Bình Điền (Đầu Trâu)', 'bao 50kg', 'npk', 710000, 'NPK đa dụng cho bón lót và bón thúc đầu vụ, có thêm trung vi lượng giúp bộ rễ khỏe.', 'Đạm (N) 16% – Lân (P₂O₅) 16% – Kali (K₂O) 8%, bổ sung trung vi lượng (TE).', E'Tỷ lệ đạm – lân bằng nhau, hợp giai đoạn cây con và đẻ nhánh.\nThúc rễ phát triển, cây bén đất nhanh sau gieo trồng.\nDễ phối hợp với kali đơn khi vào giai đoạn nuôi trái.', E'Lúa: bón lót hoặc thúc đẻ nhánh 150–200 kg/ha.\nNgô, rau màu: 200–300 kg/ha, chia 2–3 lần.\nCây ăn trái, cà phê: 0,5–1 kg/cây/lần sau thu hoạch và đầu mùa mưa.', array['Lúa', 'Ngô', 'Rau màu', 'Cà phê', 'Cây ăn trái']::text[], false),

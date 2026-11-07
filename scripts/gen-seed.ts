@@ -73,14 +73,16 @@ function categoryValues(categories: CategorySeed[], images: Images): string {
 
 const PRODUCT_COLS = 'sku, name, brand, unit, category_id, list_price, short_desc, composition, benefits, usage, crops, is_featured'
 
-function productSelect(products: ProductSeed[]): string {
+function productSelect(products: ProductSeed[], backdate = false): string {
   const values = rows(products.map((p) => [
     sqlString(p.sku), sqlString(p.name), sqlString(p.brand), sqlString(p.unit), sqlString(p.category),
     sqlInt(p.list_price), sqlString(p.short_desc), sqlString(p.composition), sqlString(p.benefits),
     sqlString(p.usage), sqlTextArray(p.crops), String(p.is_featured),
   ]))
-  return `insert into public.products (${PRODUCT_COLS})
-select v.sku, v.name, v.brand, v.unit, c.id, v.list_price, v.short_desc, v.composition, v.benefits, v.usage, v.crops, v.is_featured
+  const extraCol = backdate ? ', updated_price_at' : ''
+  const extraVal = backdate ? ", now() - interval '30 days'" : ''
+  return `insert into public.products (${PRODUCT_COLS}${extraCol})
+select v.sku, v.name, v.brand, v.unit, c.id, v.list_price, v.short_desc, v.composition, v.benefits, v.usage, v.crops, v.is_featured${extraVal}
 from (values
 ${values}
 ) as v(sku, name, brand, unit, category, list_price, short_desc, composition, benefits, usage, crops, is_featured)
@@ -142,11 +144,18 @@ insert into public.settings (key, value) values
 // ---------------------------------------------------------------------------
 // data-update-production.sql
 
+/** 10 SKU của bộ sản phẩm mẫu cũ (supabase/seed.sql ở commit 3b20003). */
+export const OLD_SAMPLE_SKUS = [
+  'NPK-161616', 'NPK-201020', 'NPK-301010', 'HC-VISINH', 'HC-PHANBO',
+  'LA-ROONG', 'LA-DUONGTRAI', 'BVTV-NAM', 'BVTV-SAU', 'VT-BINHXIT',
+] as const
+
 export function buildProductionUpdateSql(categories: CategorySeed[], products: ProductSeed[], images: Images): string {
   const slugs = new Set(categories.map((c) => c.slug))
   const bySlug = new Map(categories.map((c) => [c.slug, c]))
   const legacy = LEGACY_CATEGORY_NAMES.filter(([, slug]) => slugs.has(slug))
   const skuList = products.map((p) => `  ${sqlString(p.sku)}`).join(',\n')
+  const oldSkuList = OLD_SAMPLE_SKUS.map((k) => `  ${sqlString(k)}`).join(',\n')
   const adopt = (pairs: [string, string][]) => `update public.categories c
 set slug = v.slug, name = n.name, sort_order = n.sort_order, image_url = n.image_url
 from (values
@@ -163,6 +172,8 @@ ${GENERATED}
 -- Cập nhật dữ liệu Supabase bản thật sang bộ sản phẩm thật. Chạy SAU migration 0005, trong SQL Editor.
 -- CHỈ CHẠY MỘT LẦN, khi chuyển bộ sản phẩm mẫu cũ sang bộ dữ liệu này. Đã thêm sản phẩm thật
 -- thì KHÔNG chạy lại: bước 5 xóa mọi sản phẩm không có trong data/products.json và chưa có đơn.
+-- Có sẵn bước 0 chặn chạy lại: dừng nếu có sản phẩm ngoài bộ mới và ngoài 10 sản phẩm mẫu cũ.
+-- Sản phẩm mới thêm có updated_price_at lùi 30 ngày để không hiện hết ở "Đổi giá gần đây".
 -- Không đụng tới đối tác, đơn hàng, cài đặt.
 --  1. Nhóm cũ (theo tên cũ, rồi theo tên mới) được gắn slug, tên, ảnh, thứ tự mới — giữ id.
 --  2. Thêm/cập nhật nhóm theo slug.
@@ -170,6 +181,23 @@ ${GENERATED}
 --  4. Sản phẩm upsert theo SKU (giữ ảnh, còn hàng, hiển thị của sản phẩm đã có).
 --  5. Sản phẩm có SKU ngoài bộ mới (kể cả sản phẩm thêm tay): có đơn → ẩn; không đơn → xóa
 --     (kèm khuyến mãi theo sản phẩm đó).
+
+-- 0. Chỉ cho chạy một lần: có sản phẩm ngoài bộ mới và ngoài 10 sản phẩm mẫu cũ thì dừng.
+do $guard$
+begin
+  if exists (
+    select 1 from public.products p
+    where p.sku not in (
+${skuList}
+    )
+      and p.sku not in (
+${oldSkuList}
+      )
+  ) then
+    raise exception 'Dừng: trong cơ sở dữ liệu có sản phẩm ngoài bộ dữ liệu mới và ngoài 10 sản phẩm mẫu cũ (có thể quản trị viên đã thêm). Script này chỉ chạy một lần khi chuyển dữ liệu; chạy lại sẽ xóa các sản phẩm đó.';
+  end if;
+end
+$guard$;
 
 -- 1. Nhóm cũ → slug mới
 ${adopt(legacy)}
@@ -191,7 +219,7 @@ ${tierRateSelect(categories)}
 on conflict (tier_id, category_id) do update set rate_pct = excluded.rate_pct;
 
 -- 4. Sản phẩm theo SKU
-${productSelect(products)}
+${productSelect(products, true)}
 on conflict (sku) do update
 set name = excluded.name, brand = excluded.brand, unit = excluded.unit, category_id = excluded.category_id,
   list_price = excluded.list_price, short_desc = excluded.short_desc, composition = excluded.composition,

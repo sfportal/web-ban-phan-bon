@@ -8,6 +8,7 @@ import { ProductTabs } from '@/components/shop/ProductTabs'
 import { SectionHeader } from '@/components/ui'
 import { categoryKey } from '@/lib/catalog/category-key'
 import { getCatalog } from '@/lib/catalog/queries'
+import { PRODUCT_ASSURANCE } from '@/lib/site-copy'
 import { createServerClient } from '@/lib/supabase/server'
 
 // Truy vấn dữ liệu theo từng yêu cầu và chặn render đến khi có kết quả, để sản phẩm
@@ -87,11 +88,11 @@ export default async function ProductPage({ params }: PageProps<'/san-pham/[id]'
           <ul className="flex flex-col gap-2 text-stone-700">
             <li className="flex items-center gap-2.5">
               <Truck aria-hidden className="size-5 shrink-0 text-primary" />
-              Giao tận vườn, trả tiền khi nhận hoặc chuyển khoản
+              {PRODUCT_ASSURANCE.delivery}
             </li>
             <li className="flex items-center gap-2.5">
               <ShieldCheck aria-hidden className="size-5 shrink-0 text-primary" />
-              Hàng chính hãng, đúng tem nhãn
+              {PRODUCT_ASSURANCE.info}
             </li>
           </ul>
 

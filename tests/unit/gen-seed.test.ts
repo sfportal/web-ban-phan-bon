@@ -3,7 +3,7 @@ import categories from '@/data/categories.json'
 import products from '@/data/products.json'
 import type { CategorySeed, ProductSeed } from '@/lib/dataset/validate'
 import { IMAGES } from '@/lib/media/images'
-import { buildProductionUpdateSql, buildSeedSql, seedOverride } from '@/scripts/gen-seed'
+import { buildProductionUpdateSql, buildSeedSql, OLD_SAMPLE_SKUS, seedOverride } from '@/scripts/gen-seed'
 
 const cats = categories as CategorySeed[]
 const prods = products as ProductSeed[]
@@ -63,6 +63,16 @@ describe('buildProductionUpdateSql', () => {
     expect(sql).toMatch(/delete from public\.products p[\s\S]*not exists \(select 1 from public\.order_lines/)
     for (const p of prods) expect(sql).toContain(`'${p.sku}'`)
     expect(sql).not.toMatch(/undefined|NaN/)
+  })
+
+  test('có chốt chạy một lần và lùi updated_price_at khi thêm mới', () => {
+    expect(sql).toMatch(/do \$guard\$[\s\S]*raise exception 'Dừng:/)
+    for (const k of OLD_SAMPLE_SKUS) expect(sql).toContain(`'${k}'`)
+    expect(sql.indexOf('$guard$')).toBeLessThan(sql.indexOf('-- 1. Nhóm cũ'))
+    expect(sql).toContain("now() - interval '30 days'")
+    expect(sql).toMatch(/updated_price_at\)\nselect[\s\S]*on conflict \(sku\) do update/)
+    expect(sql.split('on conflict (sku) do update')[1].split(';')[0]).not.toContain('updated_price_at')
+    expect(buildSeedSql(cats, prods, IMAGES)).not.toContain('updated_price_at')
   })
 
   test('đổi nhóm cũ theo tên cũ sang slug mới', () => {

@@ -10,6 +10,7 @@ import type { CatalogProduct } from '@/lib/catalog/queries'
 import { formatVnd } from '@/lib/format'
 import { submitRetailOrder } from '@/lib/orders/actions'
 import type { Change, SubmitError } from '@/lib/orders/submit'
+import { RETAIL_PHONE_HINT } from '@/lib/site-copy'
 
 const subscribeNoop = () => () => {}
 
@@ -110,7 +111,7 @@ export function RetailForm({ products, prices }: { products: CatalogProduct[]; p
       <Field label="Họ tên">
         <Input name="name" required maxLength={200} autoComplete="name" />
       </Field>
-      <Field label="Số điện thoại" hint="Cửa hàng gọi số này để xác nhận đơn.">
+      <Field label="Số điện thoại" hint={RETAIL_PHONE_HINT}>
         <Input name="phone" type="tel" inputMode="tel" required maxLength={30} autoComplete="tel" />
       </Field>
       <Field label="Địa chỉ giao hàng">

@@ -1,6 +1,7 @@
 import { MessageCircle, Sprout } from 'lucide-react'
 import Link from 'next/link'
 import { safeHttpUrl } from '@/lib/site'
+import { FOOTER } from '@/lib/site-copy'
 
 const LINK = 'flex min-h-11 items-center font-semibold text-white/90 hover:text-white'
 
@@ -15,7 +16,7 @@ export function SiteFooter({ storeName, zaloLink }: { storeName: string; zaloLin
             <Sprout aria-hidden className="size-6 text-accent" />
             {storeName}
           </p>
-          <p className="max-w-sm text-white/80">Phân bón, thuốc BVTV và vật tư nông nghiệp chính hãng, giao tận vườn cho bà con.</p>
+          <p className="max-w-sm text-white/80">{FOOTER.about}</p>
           {zalo && (
             <a href={zalo} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex h-11 w-fit items-center gap-2 rounded-xl bg-white/10 px-4 font-semibold ring-1 ring-white/20 hover:bg-white/15">
               <MessageCircle aria-hidden className="size-5" />
@@ -35,7 +36,7 @@ export function SiteFooter({ storeName, zaloLink }: { storeName: string; zaloLin
         </nav>
       </div>
       <p className="border-t border-white/10 px-4 py-4 text-center text-sm text-white/60">
-        Giá là giá tham khảo, có thể đổi theo thời điểm. Ảnh minh họa từ Unsplash và Pexels.
+        {FOOTER.note} {FOOTER.credit}
       </p>
     </footer>
   )

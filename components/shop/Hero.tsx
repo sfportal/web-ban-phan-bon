@@ -2,6 +2,7 @@ import { ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
 import { RemoteImage } from '@/components/ui'
 import { IMAGES } from '@/lib/media/images'
+import { HERO } from '@/lib/site-copy'
 
 const CTA = 'inline-flex h-[52px] items-center justify-center gap-2 rounded-xl px-6 text-lg font-semibold transition-colors'
 
@@ -24,10 +25,10 @@ export function Hero() {
         />
         <div className="mx-auto flex min-h-[480px] max-w-6xl flex-col justify-end gap-5 px-4 pb-8 pt-28 md:min-h-[520px] md:justify-center md:px-12 md:py-16">
           <h1 className="max-w-[13ch] text-balance text-[2.6rem] font-bold leading-[1.04] tracking-[-0.02em] md:text-7xl md:leading-[1.02]">
-            Vật tư nông nghiệp chính hãng — giao tận vườn
+            {HERO.title}
           </h1>
           <p className="max-w-[34ch] text-lg leading-relaxed text-white/90">
-            Phân bón, thuốc BVTV và vật tư của các hãng quen thuộc. Giá niêm yết rõ ràng, đặt hàng vài phút, trả tiền khi nhận.
+            {HERO.subtitle}
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link href="#san-pham" className={`${CTA} bg-accent text-ink hover:bg-yellow-500`}>

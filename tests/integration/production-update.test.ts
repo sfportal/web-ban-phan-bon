@@ -15,22 +15,23 @@ const one = async <T = Record<string, unknown>>(sql: string, args: unknown[] = [
 
 async function cleanup() {
   await db.query(`delete from public.orders where code = 'TEST-PROD-UPD'`)
-  await db.query(`delete from public.products where sku in ('OLD-1', 'OLD-2')`)
+  await db.query(`delete from public.products where sku in ('NPK-161616', 'HC-PHANBO', 'ZZ-ADMIN')`)
 }
 
 let laId: string
 let vtId: string
 const SAMPLE = PRODUCTS[0]
+const NEWP = PRODUCTS[1]
 
 beforeAll(async () => {
   await db.connect()
   await cleanup()
   const npk = (await one<{ id: string }>(`select id from public.categories where slug = 'npk'`))!.id
-  // OLD-1 có đơn (giữ lại, ẩn), OLD-2 không đơn (xóa).
+  // Hai SKU mẫu cũ (được phép): NPK-161616 có đơn (giữ lại, ẩn), HC-PHANBO không đơn (xóa).
   const old1 = (await one<{ id: string }>(
-    `insert into public.products (sku, name, unit, category_id, list_price) values ('OLD-1', 'Mẫu cũ 1', 'bao', $1, 1000) returning id`, [npk],
+    `insert into public.products (sku, name, unit, category_id, list_price) values ('NPK-161616', 'Mẫu cũ 1', 'bao', $1, 1000) returning id`, [npk],
   ))!.id
-  await db.query(`insert into public.products (sku, name, unit, category_id, list_price) values ('OLD-2', 'Mẫu cũ 2', 'bao', $1, 1000)`, [npk])
+  await db.query(`insert into public.products (sku, name, unit, category_id, list_price) values ('HC-PHANBO', 'Mẫu cũ 2', 'bao', $1, 1000)`, [npk])
   const order = (await one<{ id: string }>(
     `insert into public.orders (code, source, retail_name, retail_phone, subtotal, total_qty)
      values ('TEST-PROD-UPD', 'retail', 'Khách', '0911111111', 1000, 1) returning id`,
@@ -49,6 +50,8 @@ beforeAll(async () => {
   ))!.id
   await db.query(`update public.tier_rates set rate_pct = 99 where category_id = $1`, [laId])
   await db.query(`delete from public.tier_rates where category_id = $1`, [vtId])
+  // Một sản phẩm của bộ mới "chưa có" trên bản thật: script phải thêm và lùi updated_price_at 30 ngày.
+  await db.query(`delete from public.products where sku = $1`, [NEWP.sku])
   await db.query(`update public.products set list_price = 1, brand = null, crops = '{}' where sku = $1`, [SAMPLE.sku])
 })
 
@@ -61,8 +64,8 @@ test('chạy hai lần không lỗi; ẩn sản phẩm cũ có đơn, xóa sản
   await db.query(SQL)
   await db.query(SQL)
 
-  expect(await one(`select is_active from public.products where sku = 'OLD-1'`)).toEqual({ is_active: false })
-  expect(await one(`select 1 from public.products where sku = 'OLD-2'`)).toBeUndefined()
+  expect(await one(`select is_active from public.products where sku = 'NPK-161616'`)).toEqual({ is_active: false })
+  expect(await one(`select 1 from public.products where sku = 'HC-PHANBO'`)).toBeUndefined()
   const active = await one<{ n: number }>(`select count(*)::int as n from public.products where is_active`)
   expect(active!.n).toBe(PRODUCTS.length)
 
@@ -88,4 +91,24 @@ test('chạy hai lần không lỗi; ẩn sản phẩm cũ có đơn, xóa sản
   expect(await one(`select list_price::int as list_price, brand, crops, c.slug from public.products p join public.categories c on c.id = p.category_id where sku = $1`, [SAMPLE.sku]))
     .toEqual({ list_price: SAMPLE.list_price, brand: SAMPLE.brand, crops: SAMPLE.crops, slug: SAMPLE.category })
   expect(category('phan-bon-la').name).not.toBe('Phân bón lá')
+})
+
+test('sản phẩm thêm mới được lùi updated_price_at 30 ngày, sản phẩm đã có không bị lùi', async () => {
+  await db.query(SQL)
+  const added = await one<{ days: number }>(
+    `select extract(epoch from now() - updated_price_at)/86400 as days from public.products where sku = $1`, [NEWP.sku])
+  expect(Number(added!.days)).toBeGreaterThan(29)
+  // SAMPLE đã có, giá bị đổi lại về giá chuẩn => trigger đặt updated_price_at = now(), không bị lùi.
+  const existing = await one<{ days: number }>(
+    `select extract(epoch from now() - updated_price_at)/86400 as days from public.products where sku = $1`, [SAMPLE.sku])
+  expect(Number(existing!.days)).toBeLessThan(1)
+})
+
+test('chặn chạy lại: có sản phẩm ngoài bộ mới và ngoài 10 sản phẩm mẫu cũ thì dừng, không xóa gì', async () => {
+  const npk = (await one<{ id: string }>(`select id from public.categories where slug = 'npk'`))!.id
+  await db.query(`insert into public.products (sku, name, unit, category_id, list_price) values ('ZZ-ADMIN', 'Admin thêm', 'bao', $1, 1000)`, [npk])
+  await expect(db.query(SQL)).rejects.toThrow(/chỉ chạy một lần/)
+  await db.query('rollback') // script tự mở transaction (begin;) nên lỗi để lại giao dịch đã hủy
+  expect(await one(`select 1 from public.products where sku = 'ZZ-ADMIN'`)).toBeDefined()
+  await db.query(`delete from public.products where sku = 'ZZ-ADMIN'`)
 })

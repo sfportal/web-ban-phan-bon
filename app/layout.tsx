@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { SITE_NAME } from "@/lib/site";
 import "./globals.css";
@@ -40,6 +40,8 @@ export const metadata: Metadata = {
   title: SITE_NAME,
   description: `${SITE_NAME} — đặt hàng phân bón dành cho cộng tác viên và đối tác`,
 };
+
+export const viewport: Viewport = { themeColor: "#15803d" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { phoneToEmail } from '@/lib/phone'
 import { adminClient } from '@/lib/supabase/admin'
 import type { Database, Json } from '@/lib/supabase/database.types'
+import { requestContext } from './request-context'
 
 export { adminClient }
 
@@ -128,6 +129,37 @@ export async function resetData(): Promise<void> {
     const { error } = await admin.auth.admin.deleteUser(id)
     if (error) throw error
   }
+}
+
+// Gọi Server Action / guard trong test -------------------------------------------
+
+/**
+ * Chạy `fn` như một request của `u` (null = khách chưa đăng nhập). createServerClient()
+ * trả `u.client`; cookies() là kho trong bộ nhớ riêng cho lần gọi này; headers() có
+ * `x-forwarded-for` = `opts.ip` nếu truyền. Xem tests/integration/setup.ts.
+ */
+export function asUser<T>(
+  u: { client: SupabaseClient<Database> } | null,
+  fn: () => Promise<T>,
+  opts: { ip?: string } = {},
+): Promise<T> {
+  const headers = new Headers()
+  if (opts.ip) headers.set('x-forwarded-for', opts.ip)
+  return requestContext.run({ client: u?.client ?? null, cookies: new Map(), headers }, fn)
+}
+
+/** Chờ `p` bị từ chối bởi redirect() của Next và trả URL đích; lỗi khác được ném lại. */
+export async function redirectTarget(p: Promise<unknown>): Promise<string> {
+  try {
+    await p
+  } catch (e) {
+    const digest = (e as { digest?: unknown }).digest
+    if (typeof digest === 'string' && digest.startsWith('NEXT_REDIRECT;')) {
+      return digest.split(';').slice(2, -2).join(';')
+    }
+    throw e
+  }
+  throw new Error('Kỳ vọng redirect() nhưng hàm trả về bình thường')
 }
 
 // RPC đơn hàng / nông dân (0003_functions.sql) ------------------------------------

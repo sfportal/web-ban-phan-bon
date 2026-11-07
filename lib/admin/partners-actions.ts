@@ -12,20 +12,21 @@ export type PartnerResult =
   | { status: 'is_pending' }    // thao tác chỉ dành cho đối tác đã duyệt
   | { status: 'no_tier' }       // mở khóa đối tác chưa có bậc
   | { status: 'invalid_tier' }
+  | { status: 'owns_farmers' }  // changePartnerTier: sang bậc đại lý khi còn sở hữu nông dân
 
 const uuid = z.uuid()
 
-async function tierExists(tierId: string): Promise<boolean> {
-  if (!uuid.safeParse(tierId).success) return false
-  const { data } = await adminClient().from('partner_tiers').select('id').eq('id', tierId).maybeSingle().throwOnError()
-  return !!data
+async function tierKind(tierId: string): Promise<'commission' | 'wholesale' | null> {
+  if (!uuid.safeParse(tierId).success) return null
+  const { data } = await adminClient().from('partner_tiers').select('kind').eq('id', tierId).maybeSingle().throwOnError()
+  return data?.kind ?? null
 }
 
 /** pending → active kèm bậc (bắt buộc). */
 export async function approvePartner(id: string, tierId: string): Promise<PartnerResult> {
   await requireStaff('admin')
   if (!uuid.safeParse(id).success) return { status: 'not_found' }
-  if (!(await tierExists(tierId))) return { status: 'invalid_tier' }
+  if (!(await tierKind(tierId))) return { status: 'invalid_tier' }
   const db = adminClient()
   const { data } = await db.from('partners').update({ status: 'active', tier_id: tierId })
     .eq('id', id).eq('status', 'pending').select('id').throwOnError()
@@ -48,15 +49,24 @@ export async function setPartnerStatus(id: string, status: 'active' | 'locked'):
   return { status: 'ok' }
 }
 
-/** Đổi bậc của đối tác đã duyệt (đang hoạt động hoặc bị khóa). */
+/**
+ * Đổi bậc của đối tác đã duyệt (đang hoạt động hoặc bị khóa). Đại lý không sở hữu nông dân:
+ * sang bậc đại lý chỉ được khi đối tác không còn nông dân nào (admin chuyển nông dân trước).
+ */
 export async function changePartnerTier(id: string, tierId: string): Promise<PartnerResult> {
   await requireStaff('admin')
   if (!uuid.safeParse(id).success) return { status: 'not_found' }
-  if (!(await tierExists(tierId))) return { status: 'invalid_tier' }
+  const kind = await tierKind(tierId)
+  if (!kind) return { status: 'invalid_tier' }
   const db = adminClient()
   const { data: cur } = await db.from('partners').select('status').eq('id', id).maybeSingle().throwOnError()
   if (!cur) return { status: 'not_found' }
   if (cur.status === 'pending') return { status: 'is_pending' }
+  if (kind === 'wholesale') {
+    const { count } = await db.from('farmers').select('id', { count: 'exact', head: true })
+      .eq('owner_partner_id', id).throwOnError()
+    if (count) return { status: 'owns_farmers' }
+  }
   await db.from('partners').update({ tier_id: tierId }).eq('id', id).throwOnError()
   return { status: 'ok' }
 }

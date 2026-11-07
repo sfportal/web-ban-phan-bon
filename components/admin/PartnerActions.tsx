@@ -10,6 +10,7 @@ const btn = 'h-11 rounded-lg px-4 font-semibold disabled:opacity-60'
 const MESSAGES: Record<string, string> = {
   not_found: 'Không tìm thấy đối tác', not_pending: 'Đối tác không còn ở trạng thái chờ duyệt', is_pending: 'Đối tác chưa được duyệt',
   no_tier: 'Đối tác chưa có bậc', invalid_tier: 'Bậc không hợp lệ',
+  owns_farmers: 'Đối tác đang sở hữu nông dân, hãy chuyển nông dân trước',
 }
 
 export function PartnerActions({

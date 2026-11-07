@@ -145,6 +145,18 @@ describe('đối tác', () => {
     expect((await adminClient().from('partners').select('tier_id').eq('id', p.partnerId).single().throwOnError()).data.tier_id).toBe(wholesaleTier)
   })
 
+  test('đổi sang bậc đại lý khi CTV còn sở hữu nông dân → owns_farmers, không đổi', async () => {
+    const p = await createPartner({ kind: 'commission' })
+    const f = await insertFarmerFor(p.partnerId)
+    expect(await asUser(admin, () => changePartnerTier(p.partnerId, wholesaleTier))).toEqual({ status: 'owns_farmers' })
+    expect((await adminClient().from('partners').select('tier_id').eq('id', p.partnerId).single().throwOnError()).data.tier_id).toBe(commissionTier)
+    // Đổi giữa các bậc CTV vẫn được; chuyển hết nông dân đi thì đổi sang đại lý được.
+    expect(await asUser(admin, () => changePartnerTier(p.partnerId, commissionTier))).toEqual({ status: 'ok' })
+    const q = await createPartner({ kind: 'commission' })
+    expect(await asUser(admin, () => transferFarmer(f, q.partnerId))).toEqual({ status: 'ok' })
+    expect(await asUser(admin, () => changePartnerTier(p.partnerId, wholesaleTier))).toEqual({ status: 'ok' })
+  })
+
   test('khóa / mở khóa; đối tác chờ duyệt không đổi trạng thái qua đây', async () => {
     const p = await createPartner({ kind: 'commission' })
     expect(await asUser(admin, () => setPartnerStatus(p.partnerId, 'locked'))).toEqual({ status: 'ok' })

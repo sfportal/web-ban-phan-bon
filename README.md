@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Web bán phân bón cho CTV
 
-## Getting Started
+Next.js (App Router) + Supabase. Tài liệu thiết kế và kế hoạch nằm trong `docs/`.
 
-First, run the development server:
+## Chạy local
+
+Không cần Docker hay Supabase CLI: `scripts/stack/` dựng một stack Supabase tối giản
+(Postgres từ `embedded-postgres`, Supabase Auth/GoTrue, PostgREST và một gateway
+Node ở `http://127.0.0.1:54321` phục vụ `/auth/v1` và `/rest/v1`). Không có Storage.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run stack:start   # tải binary vào .stack/ lần đầu, chạy nền, ghi .env.local và .env.test
+npm run db:reset      # tạo lại schema public, chạy supabase/migrations/*.sql rồi supabase/seed.sql
+npm run dev           # http://localhost:3000
+npm run stack:stop    # dừng mọi tiến trình; dữ liệu Postgres giữ ở /tmp/wpb-pg
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Log của từng dịch vụ ở `.stack/logs/` (Postgres: `/tmp/wpb-pg/postgres.log`).
+Khoá anon/service role là JWT dev cố định — chỉ dùng cho máy local.
+Xoá `/tmp/wpb-pg` (khi stack đã dừng) để làm sạch toàn bộ dữ liệu, kể cả user Auth.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Kiểm thử
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test           # unit (tests/unit)
+npm run test:int   # integration (tests/integration) — cần stack đang chạy
+npm run test:e2e   # Playwright, dùng Chrome cài sẵn (channel: chrome)
+npm run build
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Các biến môi trường cần có: xem `.env.example`.

@@ -3,10 +3,10 @@ import path from "node:path";
 import { parseEnv } from "node:util";
 import { defineConfig } from "vitest/config";
 
-const alias = { "@": path.resolve(__dirname, ".") };
+const alias = { "@": path.resolve(import.meta.dirname, ".") };
 
 function loadEnvTest(): Record<string, string> {
-  const file = path.resolve(__dirname, ".env.test");
+  const file = path.resolve(import.meta.dirname, ".env.test");
   if (!existsSync(file)) return {};
   return parseEnv(readFileSync(file, "utf8")) as Record<string, string>;
 }

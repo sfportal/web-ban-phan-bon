@@ -27,6 +27,10 @@ describe("local supabase stack", () => {
     const { data, error } = await anon.auth.signInWithPassword({ email, password });
     expect(error).toBeNull();
     expect(data.session?.access_token).toBeTruthy();
+    const claims = JSON.parse(
+      Buffer.from(data.session!.access_token.split(".")[1], "base64url").toString(),
+    );
+    expect(claims.role).toBe("authenticated");
   });
 
   it("REST trả 200 với anon apikey", async () => {

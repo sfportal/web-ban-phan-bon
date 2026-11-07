@@ -3,7 +3,11 @@ import path from "node:path";
 import { parseEnv } from "node:util";
 import { defineConfig } from "vitest/config";
 
-const alias = { "@": path.resolve(import.meta.dirname, ".") };
+const alias = {
+  "@": path.resolve(import.meta.dirname, "."),
+  // Gói `server-only` throw khi import ngoài React Server Components.
+  "server-only": path.resolve(import.meta.dirname, "tests/support/server-only.ts"),
+};
 
 function loadEnvTest(): Record<string, string> {
   const file = path.resolve(import.meta.dirname, ".env.test");

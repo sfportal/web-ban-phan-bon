@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs'
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { commissionReport, exportCommissions, markCommissionsPaid } from '@/lib/admin/commission-actions'
+import { transferFarmer } from '@/lib/admin/farmers-actions'
 import { bulkSetStatus, dashboardStats, exportOrders, setOrderStatus, staffEditOrder } from '@/lib/admin/orders-actions'
 import { exportAll, saveSettings } from '@/lib/admin/settings-actions'
 import { vnPeriod } from '@/lib/format'
@@ -162,6 +163,25 @@ describe('staffEditOrder', () => {
     expect(await asUser(staff, () => staffEditOrder(id, [editLine()], true))).toEqual({ status: 'error', error: 'not_editable' })
   })
 
+  test('đơn CTV sau khi admin chuyển nông dân sang CTV khác: staff vẫn sửa được đơn', async () => {
+    const moved = await insertFarmerFor(ctv.partnerId)
+    const { id } = await createOrderRpc({
+      source: 'partner', partner_id: ctv.partnerId, retail_name: null, retail_phone: null, retail_address: null,
+      delivery_address: 'Buôn Ma Thuột',
+    }, [await sampleLine({ farmer_id: moved })])
+    const other = await createPartner({ kind: 'commission' })
+    expect(await asUser(admin, () => transferFarmer(moved, other.partnerId))).toEqual({ status: 'ok' })
+    const res = await asUser(staff, () => staffEditOrder(id, [editLine({ farmerId: moved, qty: 5 })], true))
+    expect(res.status).toBe('ok')
+    const { data: lines } = await adminClient().from('order_lines').select('qty, farmer_id').eq('order_id', id).throwOnError()
+    expect(lines).toEqual([{ qty: 5, farmer_id: moved }])
+    // Nông dân hiện của CTV cũng thêm được; nông dân của CTV khác (không có trong đơn) thì không.
+    expect((await asUser(staff, () => staffEditOrder(id, [editLine({ farmerId: moved }), editLine({ farmerId })], true))).status).toBe('ok')
+    const stranger = await insertFarmerFor(other.partnerId)
+    expect(await asUser(staff, () => staffEditOrder(id, [editLine({ farmerId: stranger })], true)))
+      .toEqual({ status: 'error', error: 'farmer_not_owned' })
+  })
+
   test('đơn đại lý: giá mua theo bậc đại lý; không được gắn nông dân', async () => {
     const { id } = await createOrderRpc({
       source: 'partner', partner_id: dealer.partnerId, retail_name: null, retail_phone: null, retail_address: null,
@@ -268,11 +288,17 @@ describe('dashboardStats', () => {
     const waiting = await ctvOrder(0)
     await walk(waiting, 'confirmed', 'shipping', 'delivered')
     await orderInStatus('new')
+    // Đơn đại lý: tiền thu thực tế là partner_payable, không phải subtotal (giá bán lẻ).
+    const { id: wholesale } = await createOrderRpc({
+      source: 'partner', partner_id: dealer.partnerId, retail_name: null, retail_phone: null, retail_address: null,
+      delivery_address: 'Đại lý', subtotal: 400000, partner_payable: 360000,
+    }, [await sampleLine({ line_total: 400000, sale_price_snap: 400000, list_price_snap: 400000, line_partner_price: 360000 })])
+    await walk(wholesale, 'confirmed', 'shipping', 'delivered', 'paid')
 
     const after = await asUser(staff, () => dashboardStats())
-    expect(after.newToday - before.newToday).toBe(4)
+    expect(after.newToday - before.newToday).toBe(5)
     expect(after.awaitingPayment - before.awaitingPayment).toBe(1)
-    expect(after.monthRevenue - before.monthRevenue).toBe(500000)
+    expect(after.monthRevenue - before.monthRevenue).toBe(500000 + 360000)
     expect(after.pendingCommission - before.pendingCommission).toBe(1000)
   })
 })

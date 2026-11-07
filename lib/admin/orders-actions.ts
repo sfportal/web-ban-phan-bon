@@ -68,7 +68,8 @@ function isNotEditable(message: string): boolean {
 /**
  * Nhân viên thay toàn bộ dòng hàng của đơn `new` | `confirmed`. Tính lại như editMyOrder
  * (priceAndDiff) theo bậc của đối tác của ĐƠN (đơn lẻ không gắn CTV → giá lẻ). Nông dân:
- * đơn CTV → phải thuộc CTV đó; đơn đại lý → không gắn; đơn lẻ → giữ nông dân sẵn có của đơn.
+ * đơn CTV → đã có trong đơn hoặc đang thuộc CTV đó; đơn đại lý → không gắn; đơn lẻ → giữ
+ * nông dân sẵn có của đơn.
  */
 export async function staffEditOrder(orderId: string, lines: SeenLine[], acceptChanges: boolean): Promise<EditResult> {
   const { userId } = await requireStaff()
@@ -87,9 +88,18 @@ export async function staffEditOrder(orderId: string, lines: SeenLine[], acceptC
   let pricingTier: string | null
   if (order.source === 'partner') {
     if (!order.partner_id || !tierId || !kind) return { status: 'error', error: 'not_editable' }
-    if (!(await farmersAllowed({ kind, partnerId: order.partner_id }, parsed))) {
-      return { status: 'error', error: 'farmer_not_owned' }
+    let allowed: boolean
+    if (kind === 'wholesale') {
+      allowed = await farmersAllowed({ kind, partnerId: order.partner_id }, parsed)
+    } else {
+      // Chuyển nông dân không ảnh hưởng đơn cũ: nông dân đã có trong đơn vẫn giữ được;
+      // nông dân mới thêm vào phải đang thuộc CTV của đơn.
+      const { data: current } = await db.from('order_lines').select('farmer_id').eq('order_id', order.id).throwOnError()
+      const inOrder = new Set(current.map((l) => l.farmer_id).filter((f) => f !== null))
+      allowed = parsed.every((l) => l.farmerId !== null)
+        && await farmersAllowed({ kind, partnerId: order.partner_id }, parsed.filter((l) => !(l.farmerId && inOrder.has(l.farmerId))))
     }
+    if (!allowed) return { status: 'error', error: 'farmer_not_owned' }
     pricingTier = tierId
   } else {
     // Mỗi dòng giữ nông dân của chính dòng đó trong đơn (khớp theo sản phẩm).
@@ -130,7 +140,10 @@ export type DashboardStats = {
   newToday: number
   /** Đơn `delivered` chưa thu tiền. */
   awaitingPayment: number
-  /** Tổng subtotal các đơn chuyển `paid` trong tháng này (giờ VN), bỏ đơn sau đó đã trả hàng. */
+  /**
+   * Tiền thu được của các đơn chuyển `paid` trong tháng này (giờ VN), bỏ đơn sau đó đã trả hàng:
+   * đơn đại lý tính `partner_payable`, đơn khác tính `subtotal`.
+   */
   monthRevenue: number
   /** Tổng hoa hồng `pending` (đã trừ dòng âm do trả hàng). */
   pendingCommission: number
@@ -145,7 +158,7 @@ export async function dashboardStats(): Promise<DashboardStats> {
     db.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', vnDayStart(0, now).toISOString()).throwOnError(),
     db.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'delivered').throwOnError(),
     fetchAll((from, to) =>
-      db.from('order_status_log').select('id, order_id, orders(subtotal, status)')
+      db.from('order_status_log').select('id, order_id, orders(subtotal, partner_payable, status)')
         .eq('to_status', 'paid').gte('changed_at', monthStart).order('id').range(from, to).throwOnError()),
     fetchAll((from, to) =>
       db.from('commission_entries').select('id, amount').eq('status', 'pending').order('id').range(from, to).throwOnError()),
@@ -155,7 +168,7 @@ export async function dashboardStats(): Promise<DashboardStats> {
   for (const e of paidLog) {
     if (seen.has(e.order_id) || !e.orders || e.orders.status === 'returned') continue
     seen.add(e.order_id)
-    monthRevenue += Number(e.orders.subtotal)
+    monthRevenue += Number(e.orders.partner_payable ?? e.orders.subtotal)
   }
   return {
     newToday: today.count ?? 0,

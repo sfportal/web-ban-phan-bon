@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { SITE_NAME } from "@/lib/site";
 import "./globals.css";
 
 // Be Vietnam Pro tự host từ @fontsource (không tải được từ Google Fonts).
@@ -35,11 +36,9 @@ const beVietnamLatin = localFont({
   display: "swap",
 });
 
-const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? "Phân Bón";
-
 export const metadata: Metadata = {
-  title: siteName,
-  description: `${siteName} — đặt hàng phân bón dành cho cộng tác viên và đối tác`,
+  title: SITE_NAME,
+  description: `${SITE_NAME} — đặt hàng phân bón dành cho cộng tác viên và đối tác`,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

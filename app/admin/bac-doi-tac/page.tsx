@@ -13,12 +13,12 @@ async function Tiers() {
   const { role } = await requireStaff()
   const readOnly = role !== 'admin'
   const db = adminClient()
-  const [{ data: tiers }, { data: cats }, { data: rates }, { data: prodRates }, { data: products }, partners] = await Promise.all([
+  const [{ data: tiers }, { data: cats }, { data: rates }, { data: prodRates }, products, partners] = await Promise.all([
     db.from('partner_tiers').select('id, name, kind').order('name').throwOnError(),
     db.from('categories').select('id, name').order('sort_order').order('name').throwOnError(),
     db.from('tier_rates').select('tier_id, category_id, rate_pct').throwOnError(),
     db.from('tier_product_rates').select('tier_id, product_id, rate_pct').throwOnError(),
-    db.from('products').select('id, name').order('name').throwOnError(),
+    fetchAll((from, to) => db.from('products').select('id, name').order('name').order('id').range(from, to).throwOnError()),
     fetchAll((from, to) => db.from('partners').select('tier_id').order('id').range(from, to).throwOnError()),
   ])
   const counts = new Map<string, number>()

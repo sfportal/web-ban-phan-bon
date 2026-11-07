@@ -11,7 +11,7 @@ export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
   const staff = await requireStaff()
   return (
     <div className="flex flex-1 flex-col text-base">
-      <header className="flex items-center justify-between gap-2 border-b p-4">
+      <header className="flex items-center justify-between gap-2 border-b p-4 print:hidden">
         <span className="font-semibold">
           {SITE_NAME} · {staff.role === 'admin' ? 'Quản trị' : 'Nhân viên'}
         </span>
@@ -19,7 +19,7 @@ export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
           <button type="submit" className="h-11 px-3 font-semibold text-green-700">Đăng xuất</button>
         </form>
       </header>
-      <AdminNav />
+      <AdminNav role={staff.role} />
       {children}
     </div>
   )

@@ -78,8 +78,8 @@ async function NewOrder({ searchParams }: Pick<PageProps<'/doi-tac/don-moi'>, 's
 
 export default function NewOrderPage({ searchParams }: PageProps<'/doi-tac/don-moi'>) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4 pb-32 text-base">
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pb-32 pt-5 text-base">
+      <Suspense fallback={<p className="py-8 text-center text-stone-600">Đang tải...</p>}>
         <NewOrder searchParams={searchParams} />
       </Suspense>
     </main>

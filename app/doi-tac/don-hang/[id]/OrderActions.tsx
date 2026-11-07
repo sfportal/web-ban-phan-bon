@@ -31,7 +31,7 @@ const ERRORS: Partial<Record<ErrorCode, string>> = {
 }
 const FALLBACK = 'Không lưu được. Kiểm tra kết nối mạng rồi thử lại.'
 
-const btn = 'flex h-11 flex-1 items-center justify-center rounded-lg px-4 font-semibold disabled:opacity-50'
+const btn = 'flex h-11 flex-1 items-center justify-center rounded-xl px-4 font-semibold transition-colors disabled:opacity-50'
 
 function changeText(c: Change): string {
   if (c.field === 'price') return `giá đổi ${formatVnd(Number(c.old))} → ${formatVnd(Number(c.new))}`
@@ -106,13 +106,13 @@ export function OrderActions({
   if (!editing) {
     return (
       <div className="flex flex-col gap-2">
-        {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
+        {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 font-semibold text-red-800">{error}</p>}
         <div className="flex gap-2">
-          <button type="button" className={`${btn} bg-green-700 text-white`} disabled={pending}
+          <button type="button" className={`${btn} bg-primary text-white hover:bg-primary-hover`} disabled={pending}
             onClick={() => { setLines(initialLines); setChanges(null); setError(null); setEditing(true) }}>
             Sửa
           </button>
-          <button type="button" className={`${btn} border border-red-700 text-red-700`} disabled={pending} onClick={cancel}>
+          <button type="button" className={`${btn} border border-red-700 bg-white text-red-700 hover:bg-red-50`} disabled={pending} onClick={cancel}>
             {pending ? 'Đang hủy…' : 'Hủy đơn'}
           </button>
         </div>
@@ -125,17 +125,17 @@ export function OrderActions({
   const hasGone = lines.some((l) => !l.available)
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border-2 border-green-700 p-3" aria-label="Sửa đơn">
+    <section className="flex flex-col gap-3 rounded-2xl border-2 border-primary bg-white p-4" aria-label="Sửa đơn">
       <h2 className="text-lg font-bold">Sửa đơn</h2>
-      <p className="text-sm text-gray-700">Đơn được tính lại theo giá hiện tại khi lưu.</p>
-      <ul className="flex flex-col divide-y">
+      <p className="text-sm text-stone-700">Đơn được tính lại theo giá hiện tại khi lưu.</p>
+      <ul className="flex flex-col divide-y divide-stone-100">
         {lines.map((l) => {
           const c = changeOf.get(l.productId)
           return (
             <li key={l.key} className="flex flex-col gap-2 py-3">
               <span>
                 <span className="block font-semibold">{l.name}</span>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-stone-600">
                   {kind === 'commission' && l.farmerName ? `${l.farmerName} · ` : ''}{l.unit}
                 </span>
               </span>
@@ -147,7 +147,7 @@ export function OrderActions({
                   <Money value={l.price * l.qty} className="font-semibold" />
                 </span>
               )}
-              {c && l.available && <span className="text-sm text-amber-800">{changeText(c)}</span>}
+              {c && l.available && <span className="text-sm font-semibold text-yellow-900">{changeText(c)}</span>}
               <button type="button" className="h-11 self-start font-semibold text-red-700"
                 onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}>
                 Bỏ dòng này
@@ -159,15 +159,15 @@ export function OrderActions({
       <p className="flex justify-between text-lg">
         <span>Tổng theo giá bán lẻ</span><Money value={total} className="font-bold" />
       </p>
-      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
+      {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 font-semibold text-red-800">{error}</p>}
       {changes && !hasGone && (
-        <p role="status" className="rounded-lg bg-amber-50 p-3 text-amber-900">Giá đã thay đổi. Kiểm tra lại rồi bấm &quot;Lưu với giá mới&quot;.</p>
+        <p role="status" className="rounded-xl border border-accent/40 bg-accent-soft p-3 text-yellow-900">Giá đã thay đổi. Kiểm tra lại rồi bấm &quot;Lưu với giá mới&quot;.</p>
       )}
       <div className="flex gap-2">
-        <button type="button" className={`${btn} border border-gray-300`} disabled={pending} onClick={() => setEditing(false)}>
+        <button type="button" className={`${btn} border border-stone-300 bg-white hover:bg-stone-50`} disabled={pending} onClick={() => setEditing(false)}>
           Thôi
         </button>
-        <button type="button" className={`${btn} bg-green-700 text-white`} disabled={pending || hasGone || lines.length === 0}
+        <button type="button" className={`${btn} bg-primary text-white hover:bg-primary-hover`} disabled={pending || hasGone || lines.length === 0}
           onClick={() => save(changes !== null)}>
           {pending ? 'Đang lưu…' : changes ? 'Lưu với giá mới' : 'Lưu'}
         </button>

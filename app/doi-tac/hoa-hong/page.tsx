@@ -1,6 +1,8 @@
+import { PiggyBank, Wallet } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { Money } from '@/components/Money'
+import { Badge, Card, EmptyState } from '@/components/ui'
 import { requirePartner, type PartnerSession } from '@/lib/auth/guards'
 import { vnPeriod } from '@/lib/format'
 import { SITE_NAME } from '@/lib/site'
@@ -35,15 +37,16 @@ async function Commission({ session, requested }: { session: PartnerSession; req
 
   return (
     <>
-      <nav aria-label="Chọn kỳ" className="-mx-4 overflow-x-auto px-4">
+      <nav aria-label="Chọn kỳ" className="-mx-4 overflow-x-auto px-4 pb-1">
         <div className="flex min-w-max gap-2">
           {periods.map((p) => (
             <Link
               key={p}
               href={`/doi-tac/hoa-hong?ky=${p}`}
+              prefetch={false}
               aria-current={p === period ? 'page' : undefined}
-              className={`flex h-11 items-center rounded-full border px-4 font-semibold ${
-                p === period ? 'border-green-700 bg-green-700 text-white' : 'border-gray-300 text-gray-700'
+              className={`flex h-11 items-center rounded-full border px-4 font-semibold transition-colors ${
+                p === period ? 'border-primary bg-primary text-white' : 'border-stone-300 bg-white text-stone-700 hover:border-primary/50'
               }`}
             >
               {periodLabel(p)}
@@ -53,34 +56,61 @@ async function Commission({ session, requested }: { session: PartnerSession; req
       </nav>
 
       {entries.length === 0 ? (
-        <p className="py-8 text-center text-gray-600">Chưa có hoa hồng trong {periodLabel(period).toLowerCase()}.</p>
+        <Card>
+          <EmptyState
+            icon={<Wallet className="size-7" />}
+            title={`Chưa có hoa hồng trong ${periodLabel(period).toLowerCase()}.`}
+            description="Hoa hồng được ghi khi đơn của bạn đã thu đủ tiền."
+          />
+        </Card>
       ) : (
-        <table className="w-full text-left">
-          <thead className="border-b text-sm text-gray-600">
-            <tr><th className="py-2 font-semibold">Mã đơn</th><th className="py-2 text-right font-semibold">Số tiền</th><th className="py-2 text-right font-semibold">Trạng thái</th></tr>
-          </thead>
-          <tbody className="divide-y">
-            {entries.map((e) => (
-              <tr key={e.id}>
-                <td className="py-3">
-                  {e.orders ? (
-                    <Link href={`/doi-tac/don-hang/${e.orders.id}`} className="font-semibold text-green-800">{e.orders.code}</Link>
-                  ) : '—'}
-                  {e.kind === 'reversal' && <span className="block text-sm text-red-700">Trả hàng</span>}
-                </td>
-                <td className="py-3 text-right"><Money value={Number(e.amount)} /></td>
-                <td className={`py-3 text-right ${e.status === 'paid' ? 'text-green-800' : 'text-amber-800'}`}>
-                  {e.status === 'paid' ? 'Đã chi' : 'Chờ chi'}
-                </td>
+        <Card className="overflow-hidden">
+          <table className="w-full text-left">
+            <caption className="sr-only">Hoa hồng {periodLabel(period).toLowerCase()}</caption>
+            <thead className="border-b border-stone-200 bg-stone-50 text-sm text-stone-600">
+              <tr>
+                <th className="px-4 py-2.5 font-semibold">Mã đơn</th>
+                <th className="px-2 py-2.5 text-right font-semibold">Số tiền</th>
+                <th className="px-4 py-2.5 text-right font-semibold">Trạng thái</th>
               </tr>
-            ))}
-          </tbody>
-          <tfoot className="border-t-2">
-            <tr><th className="py-2">Tổng kỳ</th><td className="py-2 text-right font-bold"><Money value={sum(() => true)} /></td><td /></tr>
-            <tr className="text-sm text-gray-700"><td className="py-1">Đã chi</td><td className="py-1 text-right"><Money value={sum((e) => e.status === 'paid')} /></td><td /></tr>
-            <tr className="text-sm text-gray-700"><td className="py-1">Chờ chi</td><td className="py-1 text-right"><Money value={sum((e) => e.status !== 'paid')} /></td><td /></tr>
-          </tfoot>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
+              {entries.map((e) => (
+                <tr key={e.id}>
+                  <td className="px-4 py-3">
+                    {e.orders ? (
+                      <Link href={`/doi-tac/don-hang/${e.orders.id}`} prefetch={false} className="font-semibold text-primary underline-offset-4 hover:underline">
+                        {e.orders.code}
+                      </Link>
+                    ) : '—'}
+                    {e.kind === 'reversal' && <span className="block text-sm font-semibold text-red-700">Trả hàng</span>}
+                  </td>
+                  <td className="px-2 py-3 text-right font-semibold tabular-nums text-ink"><Money value={Number(e.amount)} /></td>
+                  <td className="px-4 py-3 text-right">
+                    {e.status === 'paid' ? <Badge tone="green">Đã chi</Badge> : <Badge tone="yellow">Chờ chi</Badge>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="border-t-2 border-stone-200 bg-primary-soft/40">
+              <tr className="text-lg text-ink">
+                <th className="px-4 pb-1 pt-3">Tổng kỳ</th>
+                <td className="px-2 pb-1 pt-3 text-right font-bold tabular-nums"><Money value={sum(() => true)} /></td>
+                <td />
+              </tr>
+              <tr className="text-sm text-stone-700">
+                <td className="px-4 py-0.5">Đã chi</td>
+                <td className="px-2 py-0.5 text-right tabular-nums"><Money value={sum((e) => e.status === 'paid')} /></td>
+                <td />
+              </tr>
+              <tr className="text-sm text-stone-700">
+                <td className="px-4 pb-3 pt-0.5">Chờ chi</td>
+                <td className="px-2 pb-3 pt-0.5 text-right tabular-nums"><Money value={sum((e) => e.status !== 'paid')} /></td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </Card>
       )}
     </>
   )
@@ -103,16 +133,31 @@ async function Savings({ session }: { session: PartnerSession }) {
     months.set(p, m)
   }
   const rows = [...months].sort(([a], [b]) => b.localeCompare(a))
-  if (rows.length === 0) return <p className="py-8 text-center text-gray-600">Chưa có đơn nào.</p>
+  if (rows.length === 0) {
+    return (
+      <Card>
+        <EmptyState
+          icon={<PiggyBank className="size-7" />}
+          title="Chưa có đơn nào."
+          description="Mỗi đơn đặt theo giá đại lý sẽ cộng phần tiết kiệm vào tháng đặt đơn."
+        />
+      </Card>
+    )
+  }
   return (
-    <ul className="flex flex-col divide-y rounded-xl border border-gray-200">
+    <ul className="flex flex-col gap-2.5">
       {rows.map(([p, m]) => (
-        <li key={p} className="flex items-center justify-between gap-3 p-3">
-          <span>
-            <span className="block font-semibold">{periodLabel(p)}</span>
-            <span className="text-sm text-gray-600">{m.count} đơn</span>
-          </span>
-          <Money value={m.saved} className="font-bold text-green-800" />
+        <li key={p}>
+          <Card className="flex items-center gap-3 p-4">
+            <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+              <PiggyBank className="size-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-ink">{periodLabel(p)}</span>
+              <span className="text-sm text-stone-600">{m.count} đơn</span>
+            </span>
+            <Money value={m.saved} className="shrink-0 text-lg font-bold tabular-nums text-primary" />
+          </Card>
         </li>
       ))}
     </ul>
@@ -125,7 +170,7 @@ async function Content({ searchParams }: Pick<PageProps<'/doi-tac/hoa-hong'>, 's
   const requested = typeof raw === 'string' && PERIOD.test(raw) ? raw : null
   return (
     <>
-      <h1 className="text-2xl font-bold">{session.kind === 'commission' ? 'Hoa hồng' : 'Tiết kiệm theo tháng'}</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-ink">{session.kind === 'commission' ? 'Hoa hồng' : 'Tiết kiệm theo tháng'}</h1>
       {session.kind === 'commission' ? <Commission session={session} requested={requested} /> : <Savings session={session} />}
     </>
   )
@@ -133,8 +178,8 @@ async function Content({ searchParams }: Pick<PageProps<'/doi-tac/hoa-hong'>, 's
 
 export default function CommissionPage({ searchParams }: PageProps<'/doi-tac/hoa-hong'>) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4 text-base">
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pb-8 pt-5 text-base">
+      <Suspense fallback={<p className="py-8 text-center text-stone-600">Đang tải...</p>}>
         <Content searchParams={searchParams} />
       </Suspense>
     </main>

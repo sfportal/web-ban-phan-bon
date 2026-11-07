@@ -1,8 +1,10 @@
+import { ChevronLeft, MapPin, RotateCcw, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import { Money } from '@/components/Money'
 import { StatusBadge } from '@/components/StatusBadge'
+import { Button, Card } from '@/components/ui'
 import { requirePartner } from '@/lib/auth/guards'
 import { getActivePromos, getProductsByIds } from '@/lib/catalog/queries'
 import { formatDateTime } from '@/lib/format'
@@ -72,94 +74,109 @@ async function OrderDetail({ params }: Pick<PageProps<'/doi-tac/don-hang/[id]'>,
 
   return (
     <>
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold">{order.code}</h1>
+      <Card className="flex flex-col gap-2 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-ink">{order.code}</h1>
           <StatusBadge status={order.status} />
         </div>
-        <p className="text-gray-600">Đặt lúc {formatDateTime(order.created_at)}</p>
+        <p className="text-stone-600">Đặt lúc {formatDateTime(order.created_at)}</p>
         {order.source === 'retail' ? (
-          <p>Khách tự đặt: {order.retail_name} · {order.retail_phone}</p>
+          <p className="text-stone-800">Khách tự đặt: {order.retail_name} · {order.retail_phone}</p>
         ) : (
-          order.delivery_address && <p>Giao tới: {order.delivery_address}</p>
+          order.delivery_address && (
+            <p className="flex items-start gap-2 text-stone-800">
+              <MapPin aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
+              <span>Giao tới: {order.delivery_address}</span>
+            </p>
+          )
         )}
-        {order.note && <p className="text-gray-700">Ghi chú: {order.note}</p>}
-      </div>
+        {order.note && <p className="text-stone-700">Ghi chú: {order.note}</p>}
+      </Card>
 
       <section className="flex flex-col gap-3">
         {groups.map((g) => (
-          <div key={g.key} className="flex flex-col gap-2 rounded-xl border border-gray-200 p-3">
-            {g.title && <h2 className="font-bold">{g.title}</h2>}
-            <ul className="flex flex-col divide-y">
+          <Card key={g.key} className="overflow-hidden">
+            {g.title && (
+              <h2 className="flex items-center gap-2 border-b border-stone-100 bg-primary-soft/50 px-4 py-2.5 font-bold text-ink">
+                <UserRound aria-hidden className="size-5 shrink-0 text-primary" />
+                {g.title}
+              </h2>
+            )}
+            <ul className="flex flex-col divide-y divide-stone-100 px-4">
               {g.lines.map((l) => (
-                <li key={l.id} className="flex flex-col gap-0.5 py-2">
-                  <span className="font-semibold">{product.get(l.product_id)?.name ?? 'Sản phẩm'}</span>
-                  <span className="flex justify-between gap-2 text-gray-700">
+                <li key={l.id} className="flex flex-col gap-0.5 py-3">
+                  <span className="font-semibold text-ink">{product.get(l.product_id)?.name ?? 'Sản phẩm'}</span>
+                  <span className="flex justify-between gap-2 text-stone-700">
                     <span>{l.qty} × <Money value={Number(l.sale_price_snap)} /></span>
-                    <Money value={Number(l.line_total)} className="font-semibold text-gray-900" />
+                    <Money value={Number(l.line_total)} className="font-semibold tabular-nums text-ink" />
                   </span>
                   {isCtv && Number(l.line_commission) > 0 && (
-                    <span className="text-sm text-green-800">Hoa hồng <Money value={Number(l.line_commission)} /></span>
+                    <span className="text-sm text-primary">Hoa hồng <Money value={Number(l.line_commission)} /></span>
                   )}
                   {l.line_partner_price !== null && (
-                    <span className="text-sm text-green-800">Giá đại lý <Money value={Number(l.line_partner_price)} /> / {product.get(l.product_id)?.unit}</span>
+                    <span className="text-sm text-primary">Giá đại lý <Money value={Number(l.line_partner_price)} /> / {product.get(l.product_id)?.unit}</span>
                   )}
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
         ))}
       </section>
 
-      <dl className="flex flex-col gap-1 rounded-xl bg-gray-50 p-4">
-        <div className="flex justify-between"><dt>Số lượng</dt><dd>{order.total_qty}</dd></div>
-        <div className="flex justify-between">
-          <dt>{order.partner_payable !== null ? 'Tổng theo giá bán lẻ' : 'Tổng tiền'}</dt>
-          <dd><Money value={Number(order.subtotal)} className="font-semibold" /></dd>
-        </div>
-        {order.partner_payable !== null && (
-          <div className="flex justify-between text-lg">
-            <dt>Phải trả</dt><dd><Money value={Number(order.partner_payable)} className="font-bold" /></dd>
+      <Card as="section" className="p-4">
+        <dl className="flex flex-col gap-1.5">
+          <div className="flex justify-between text-stone-700"><dt>Số lượng</dt><dd className="tabular-nums">{order.total_qty}</dd></div>
+          <div className="flex justify-between text-stone-700">
+            <dt>{order.partner_payable !== null ? 'Tổng theo giá bán lẻ' : 'Tổng tiền'}</dt>
+            <dd><Money value={Number(order.subtotal)} className="font-semibold tabular-nums text-ink" /></dd>
           </div>
-        )}
-        {Number(order.commission_expected) > 0 && (
-          <div className="flex justify-between text-green-800">
-            <dt>Hoa hồng dự kiến</dt><dd><Money value={Number(order.commission_expected)} className="font-semibold" /></dd>
-          </div>
-        )}
-      </dl>
+          {order.partner_payable !== null && (
+            <div className="flex justify-between border-t border-stone-100 pt-2 text-lg text-ink">
+              <dt className="font-semibold">Phải trả</dt><dd><Money value={Number(order.partner_payable)} className="font-bold tabular-nums" /></dd>
+            </div>
+          )}
+          {Number(order.commission_expected) > 0 && (
+            <div className="flex justify-between rounded-xl bg-primary-soft px-3 py-2 text-primary-hover">
+              <dt className="font-semibold">Hoa hồng dự kiến</dt><dd><Money value={Number(order.commission_expected)} className="font-bold tabular-nums" /></dd>
+            </div>
+          )}
+        </dl>
+      </Card>
 
       <OrderActions orderId={order.id} kind={session.kind} editable={editable} lines={editLines} />
 
       {order.source === 'partner' && (
-        <Link
-          href={`/doi-tac/don-moi?tu-don=${order.id}`}
-          className="flex h-11 items-center justify-center rounded-lg border border-green-700 font-semibold text-green-800"
-        >
+        <Button href={`/doi-tac/don-moi?tu-don=${order.id}`} variant="secondary" prefetch={false}>
+          <RotateCcw aria-hidden className="size-5" />
           Đặt lại
-        </Link>
+        </Button>
       )}
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-bold">Lịch sử trạng thái</h2>
-        <ol className="flex flex-col gap-1">
-          {log.map((e) => (
-            <li key={e.id} className="flex justify-between gap-2">
-              <span>{STATUS_LABEL[e.to_status]}</span>
-              <span className="text-gray-600">{formatDateTime(e.changed_at)}</span>
+      <Card as="section" className="flex flex-col gap-3 p-4">
+        <h2 className="text-lg font-bold text-ink">Lịch sử trạng thái</h2>
+        <ol className="flex flex-col">
+          {log.map((e, i) => (
+            <li key={e.id} className="relative flex justify-between gap-3 pb-3 pl-6 last:pb-0">
+              <span aria-hidden className={`absolute left-0 top-1.5 size-3 rounded-full ${i === log.length - 1 ? 'bg-primary ring-4 ring-primary-soft' : 'bg-stone-300'}`} />
+              {i < log.length - 1 && <span aria-hidden className="absolute bottom-0 left-[5px] top-5 w-0.5 bg-stone-200" />}
+              <span className="font-semibold text-ink">{STATUS_LABEL[e.to_status]}</span>
+              <span className="text-sm text-stone-600">{formatDateTime(e.changed_at)}</span>
             </li>
           ))}
         </ol>
-      </section>
+      </Card>
     </>
   )
 }
 
 export default function OrderDetailPage({ params }: PageProps<'/doi-tac/don-hang/[id]'>) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4 text-base">
-      <Link href="/doi-tac/don-hang" className="flex h-11 items-center font-semibold text-green-800">← Đơn hàng</Link>
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pb-8 pt-3 text-base">
+      <Link href="/doi-tac/don-hang" prefetch={false} className="-ml-1 flex h-11 items-center gap-1 self-start font-semibold text-primary">
+        <ChevronLeft aria-hidden className="size-5" />
+        Đơn hàng
+      </Link>
+      <Suspense fallback={<p className="py-8 text-center text-stone-600">Đang tải...</p>}>
         <OrderDetail params={params} />
       </Suspense>
     </main>

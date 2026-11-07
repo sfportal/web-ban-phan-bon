@@ -1,5 +1,6 @@
 'use client'
 
+import { Pencil } from 'lucide-react'
 import { Money } from '@/components/Money'
 import type { CatalogProduct } from '@/lib/catalog/queries'
 import type { OrderDraft } from '@/lib/draft/use-order-draft'
@@ -7,8 +8,8 @@ import { formatVnd } from '@/lib/format'
 import type { Change } from '@/lib/orders/submit'
 import type { PricedOrder } from '@/lib/pricing'
 
-const field = 'w-full rounded-lg border border-gray-300 px-3 text-base'
-const labelCls = 'flex flex-col gap-1 font-semibold'
+const field = 'w-full rounded-xl border border-stone-300 bg-white px-3 text-base font-normal text-ink'
+const labelCls = 'flex flex-col gap-1.5 font-semibold text-ink'
 
 function changeText(c: Change): string {
   if (c.field === 'price') return `Giá đổi: ${formatVnd(Number(c.old))} → ${formatVnd(Number(c.new))}`
@@ -55,8 +56,9 @@ export function ConfirmStep({
   return (
     <section className="flex flex-col gap-4" aria-labelledby="confirm-step">
       <div className="flex items-center justify-between gap-2">
-        <h1 id="confirm-step" className="text-2xl font-bold">Xác nhận đơn</h1>
-        <button type="button" onClick={onBack} className="h-11 px-2 font-semibold text-green-700">
+        <h1 id="confirm-step" className="text-2xl font-bold tracking-tight text-ink">Xác nhận đơn</h1>
+        <button type="button" onClick={onBack} className="flex h-11 items-center gap-1.5 rounded-xl px-2 font-semibold text-primary hover:bg-primary-soft">
+          <Pencil aria-hidden className="size-4" />
           Sửa đơn
         </button>
       </div>
@@ -64,35 +66,37 @@ export function ConfirmStep({
       {groups.map((g) => {
         const total = g.items.reduce((s, i) => s + (lineOf.get(`${g.farmerId}:${i.productId}`)?.lineTotal ?? 0), 0)
         return (
-          <div key={g.farmerId ?? 'self'} className="flex flex-col rounded-xl border border-gray-200">
-            {kind === 'commission' && <h2 className="border-b px-3 py-2 text-lg font-semibold">{g.farmerName}</h2>}
-            <ul className="flex flex-col divide-y">
+          <div key={g.farmerId ?? 'self'} className="flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white">
+            {kind === 'commission' && (
+              <h2 className="border-b border-stone-100 bg-primary-soft/50 px-4 py-2.5 text-lg font-bold text-ink">{g.farmerName}</h2>
+            )}
+            <ul className="flex flex-col divide-y divide-stone-100">
               {g.items.map((i) => {
                 const p = byId.get(i.productId)
                 const line = lineOf.get(`${g.farmerId}:${i.productId}`)
                 const change = changeOf.get(i.productId)
                 return (
-                  <li key={i.productId} className={`flex flex-col gap-1 px-3 py-2 ${change ? 'bg-amber-100' : ''}`}>
-                    <span className="font-semibold">{p?.name ?? 'Sản phẩm không còn bán'}</span>
+                  <li key={i.productId} className={`flex flex-col gap-1 px-4 py-3 ${change ? 'bg-accent-soft' : ''}`}>
+                    <span className="font-semibold text-ink">{p?.name ?? 'Sản phẩm không còn bán'}</span>
                     {line && isOrderable(i.productId) ? (
-                      <span className="flex flex-wrap justify-between gap-x-2">
+                      <span className="flex flex-wrap justify-between gap-x-2 text-stone-700">
                         <span>
                           {i.qty} × <Money value={line.salePriceSnap} />
                         </span>
-                        <Money value={line.lineTotal} className="font-semibold" />
+                        <Money value={line.lineTotal} className="font-semibold tabular-nums text-ink" />
                       </span>
                     ) : (
                       !change && <span className="font-semibold text-red-700">Không đặt được — bỏ khỏi đơn</span>
                     )}
-                    {change && <span className="font-semibold text-amber-900">{changeText(change)}</span>}
+                    {change && <span className="font-semibold text-yellow-900">{changeText(change)}</span>}
                   </li>
                 )
               })}
             </ul>
             {kind === 'commission' && (
-              <p className="flex justify-between border-t px-3 py-2">
+              <p className="flex justify-between border-t border-stone-100 px-4 py-2.5 text-stone-700">
                 <span>Tổng {g.farmerName}</span>
-                <Money value={total} className="font-semibold" />
+                <Money value={total} className="font-bold tabular-nums text-ink" />
               </p>
             )}
           </div>
@@ -100,31 +104,31 @@ export function ConfirmStep({
       })}
 
       {priced && (
-        <dl className="flex flex-col gap-1 rounded-xl bg-gray-50 p-3">
+        <dl className="flex flex-col gap-2 rounded-2xl bg-primary-hover p-4 text-white">
           {kind === 'commission' ? (
             <>
-              <div className="flex justify-between text-lg font-bold">
+              <div className="flex items-baseline justify-between text-xl font-bold">
                 <dt>Tổng đơn</dt>
-                <dd><Money value={priced.subtotal} /></dd>
+                <dd><Money value={priced.subtotal} className="tabular-nums" /></dd>
               </div>
-              <div className="flex justify-between text-green-700">
+              <div className="flex justify-between text-accent-soft">
                 <dt>Hoa hồng dự kiến</dt>
-                <dd><Money value={priced.commissionExpected} className="font-semibold" /></dd>
+                <dd><Money value={priced.commissionExpected} className="font-bold tabular-nums" /></dd>
               </div>
             </>
           ) : (
             <>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-white/85">
                 <dt>Tổng theo giá bán lẻ</dt>
-                <dd><Money value={priced.subtotal} /></dd>
+                <dd><Money value={priced.subtotal} className="tabular-nums" /></dd>
               </div>
-              <div className="flex justify-between text-lg font-bold">
+              <div className="flex items-baseline justify-between text-xl font-bold">
                 <dt>Bạn trả</dt>
-                <dd><Money value={priced.partnerPayable ?? 0} /></dd>
+                <dd><Money value={priced.partnerPayable ?? 0} className="tabular-nums" /></dd>
               </div>
-              <div className="flex justify-between text-green-700">
+              <div className="flex justify-between text-accent-soft">
                 <dt>Tiết kiệm</dt>
-                <dd><Money value={priced.subtotal - (priced.partnerPayable ?? 0)} className="font-semibold" /></dd>
+                <dd><Money value={priced.subtotal - (priced.partnerPayable ?? 0)} className="font-bold tabular-nums" /></dd>
               </div>
             </>
           )}
@@ -153,13 +157,13 @@ export function ConfirmStep({
       </label>
 
       {changes && (
-        <div role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-3">
+        <div role="alert" className="rounded-xl border border-accent/50 bg-accent-soft p-3 text-yellow-950">
           <p className="font-semibold">Đơn có thay đổi so với lúc bạn chọn (tô vàng ở trên).</p>
           <p>Kiểm tra lại rồi bấm &quot;Đồng ý và gửi lại&quot;, hoặc &quot;Sửa đơn&quot; để chỉnh.</p>
         </div>
       )}
       {error && (
-        <p role="alert" className="font-semibold text-red-700">
+        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 font-semibold text-red-800">
           {error}
         </p>
       )}
@@ -169,7 +173,7 @@ export function ConfirmStep({
           type="button"
           disabled={pending || !priced || !draft.deliveryAddress.trim()}
           onClick={() => onSubmit(true)}
-          className="h-12 rounded-lg bg-amber-600 text-lg font-semibold text-white disabled:opacity-50"
+          className="h-[52px] rounded-xl bg-accent text-lg font-semibold text-ink transition-colors hover:bg-yellow-500 disabled:opacity-50"
         >
           {pending ? 'Đang xử lý...' : 'Đồng ý và gửi lại'}
         </button>
@@ -178,7 +182,7 @@ export function ConfirmStep({
           type="button"
           disabled={pending || !priced || !draft.deliveryAddress.trim()}
           onClick={() => onSubmit(false)}
-          className="h-12 rounded-lg bg-green-700 text-lg font-semibold text-white disabled:opacity-50"
+          className="h-[52px] rounded-xl bg-primary text-lg font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
         >
           {pending ? 'Đang gửi đơn...' : 'Gửi đơn'}
         </button>

@@ -1,5 +1,7 @@
+import { ClipboardList } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
+import { Button, Card, EmptyState } from '@/components/ui'
 import { requirePartner } from '@/lib/auth/guards'
 import { STATUS_LABEL, type OrderStatus } from '@/lib/orders/status'
 import { SITE_NAME } from '@/lib/site'
@@ -27,8 +29,9 @@ async function Orders({ searchParams }: Pick<PageProps<'/doi-tac/don-hang'>, 'se
       key={href}
       href={href}
       aria-current={active ? 'page' : undefined}
-      className={`flex h-11 shrink-0 items-center rounded-full border px-4 font-semibold ${
-        active ? 'border-green-700 bg-green-700 text-white' : 'border-gray-300 text-gray-700'
+      prefetch={false}
+      className={`flex h-11 shrink-0 items-center rounded-full border px-4 font-semibold transition-colors ${
+        active ? 'border-primary bg-primary text-white' : 'border-stone-300 bg-white text-stone-700 hover:border-primary/50'
       }`}
     >
       {label}
@@ -37,18 +40,25 @@ async function Orders({ searchParams }: Pick<PageProps<'/doi-tac/don-hang'>, 'se
 
   return (
     <>
-      <nav aria-label="Lọc theo trạng thái" className="-mx-4 overflow-x-auto px-4">
+      <nav aria-label="Lọc theo trạng thái" className="-mx-4 overflow-x-auto px-4 pb-1">
         <div className="flex min-w-max gap-2">
           {chip('/doi-tac/don-hang', 'Tất cả', status === null)}
           {STATUSES.map((s) => chip(`/doi-tac/don-hang?trang-thai=${s}`, STATUS_LABEL[s], status === s))}
         </div>
       </nav>
       {data.length === 0 ? (
-        <p className="py-8 text-center text-gray-600">Không có đơn nào.</p>
+        <Card>
+          <EmptyState
+            icon={<ClipboardList className="size-7" />}
+            title="Không có đơn nào"
+            description={status ? `Chưa có đơn ở trạng thái “${STATUS_LABEL[status]}”.` : 'Đơn bạn gửi sẽ hiện ở đây.'}
+            action={<Button href="/doi-tac/don-moi" prefetch={false}>Lên đơn mới</Button>}
+          />
+        </Card>
       ) : (
         <>
           <OrderList orders={data as OrderSummary[]} kind={session.kind} />
-          {data.length === LIMIT && <p className="text-center text-sm text-gray-600">Hiển thị {LIMIT} đơn gần nhất.</p>}
+          {data.length === LIMIT && <p className="text-center text-sm text-stone-600">Hiển thị {LIMIT} đơn gần nhất.</p>}
         </>
       )}
     </>
@@ -57,9 +67,9 @@ async function Orders({ searchParams }: Pick<PageProps<'/doi-tac/don-hang'>, 'se
 
 export default function OrdersPage({ searchParams }: PageProps<'/doi-tac/don-hang'>) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4 text-base">
-      <h1 className="text-2xl font-bold">Đơn hàng</h1>
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pb-8 pt-5 text-base">
+      <h1 className="text-2xl font-bold tracking-tight text-ink">Đơn hàng</h1>
+      <Suspense fallback={<p className="py-8 text-center text-stone-600">Đang tải...</p>}>
         <Orders searchParams={searchParams} />
       </Suspense>
     </main>

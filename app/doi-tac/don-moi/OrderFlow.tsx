@@ -1,5 +1,6 @@
 'use client'
 
+import { ChevronRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Money } from '@/components/Money'
@@ -12,6 +13,7 @@ import { priceOrder, salePrice, type PromotionInput, type TierInput } from '@/li
 import { ConfirmStep } from './ConfirmStep'
 import { FarmerPicker } from './FarmerPicker'
 import { ProductPicker } from './ProductPicker'
+import { StepBar } from './StepBar'
 
 type Step = 'farmer' | 'products' | 'confirm'
 
@@ -64,7 +66,7 @@ export function OrderFlow({
 
   // Phía server draft luôn null (đơn nháp ở localStorage) nên mọi tính toán dưới đây chỉ chạy
   // trên trình duyệt; `now` dùng để hiển thị giá khuyến mãi đang hiệu lực.
-  if (!draft) return <p className="py-8 text-center text-gray-600">Đang tải đơn nháp...</p>
+  if (!draft) return <p className="py-8 text-center text-stone-600">Đang tải đơn nháp...</p>
   const now = new Date()
 
   const groups = draft.groups
@@ -134,19 +136,26 @@ export function OrderFlow({
     })
   }
 
+  const steps = <StepBar current={current} withFarmer={isCtv} />
+
   if (current === 'farmer') {
     return (
-      <FarmerPicker
+      <>
+        {steps}
+        <FarmerPicker
         chosenIds={groups.map((g) => g.farmerId)}
         onPick={pickFarmer}
         onCancel={groups.length > 0 ? () => go('products') : undefined}
-      />
+        />
+      </>
     )
   }
 
   if (current === 'confirm') {
     return (
-      <ConfirmStep
+      <>
+        {steps}
+        <ConfirmStep
         kind={partner.kind}
         draft={draft}
         byId={byId}
@@ -159,7 +168,8 @@ export function OrderFlow({
         onSubmit={submit}
         onDelivery={setDelivery}
         onNote={setNote}
-      />
+        />
+      </>
     )
   }
 
@@ -168,11 +178,12 @@ export function OrderFlow({
 
   return (
     <section className="flex flex-col gap-4" aria-labelledby="products-step">
-      <h1 id="products-step" className="text-2xl font-bold">Chọn sản phẩm</h1>
+      {steps}
+      <h1 id="products-step" className="text-2xl font-bold tracking-tight text-ink">Chọn sản phẩm</h1>
 
       {isCtv && group && (
-        <div className="flex flex-col gap-2">
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4" role="tablist" aria-label="Nông dân trong đơn">
+        <div className="flex flex-col gap-2 rounded-2xl border border-stone-200 bg-white p-3">
+          <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-0.5" role="tablist" aria-label="Nông dân trong đơn">
             {groups.map((g, i) => {
               const n = g.items.reduce((s, it) => s + it.qty, 0)
               return (
@@ -181,18 +192,18 @@ export function OrderFlow({
                     setActive(i)
                     setConfirmRemove(false)
                   }}
-                  className={`h-11 shrink-0 rounded-full px-4 font-semibold ${i === groupIdx ? 'bg-green-700 text-white' : 'bg-gray-100'}`}>
+                  className={`h-11 shrink-0 rounded-full px-4 font-semibold transition-colors ${i === groupIdx ? 'bg-primary text-white' : 'bg-stone-100 text-stone-800 hover:bg-stone-200'}`}>
                   {g.farmerName}{n > 0 ? ` (${n})` : ''}
                 </button>
               )
             })}
             <button type="button" onClick={() => go('farmer')}
-              className="h-11 shrink-0 rounded-full border-2 border-dashed border-green-700 px-4 font-semibold text-green-700">
+              className="h-11 shrink-0 rounded-full border-2 border-dashed border-primary/60 px-4 font-semibold text-primary hover:bg-primary-soft">
               + Nông dân khác
             </button>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p>Đang chọn cho: <strong>{group.farmerName}</strong></p>
+            <p className="min-w-0 text-stone-700">Đang chọn cho: <strong className="text-ink">{group.farmerName}</strong></p>
             {confirmRemove ? (
               <span className="flex gap-1">
                 <button type="button" className="h-11 px-2 font-semibold text-red-700"
@@ -203,12 +214,12 @@ export function OrderFlow({
                   }}>
                   Bỏ khách này
                 </button>
-                <button type="button" className="h-11 px-2 font-semibold" onClick={() => setConfirmRemove(false)}>
+                <button type="button" className="h-11 px-2 font-semibold text-stone-700" onClick={() => setConfirmRemove(false)}>
                   Giữ
                 </button>
               </span>
             ) : (
-              <button type="button" className="h-11 px-2 text-red-700" onClick={() => setConfirmRemove(true)}>
+              <button type="button" className="h-11 shrink-0 px-2 font-semibold text-red-700" onClick={() => setConfirmRemove(true)}>
                 Bỏ khỏi đơn
               </button>
             )}
@@ -227,15 +238,16 @@ export function OrderFlow({
         onQty={onQty}
       />
 
-      <div className="fixed inset-x-0 bottom-0 border-t bg-white p-3">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(28,25,23,0.06)] backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-          <div className="flex flex-col">
-            <span className="text-sm text-gray-600">{totalQty} sản phẩm{isCtv ? ` · ${groups.length} nông dân` : ''}</span>
-            <Money value={priced?.subtotal ?? 0} className="text-lg font-bold" />
+          <div className="flex min-w-0 flex-col">
+            <span className="text-sm text-stone-600">{totalQty} sản phẩm{isCtv ? ` · ${groups.length} nông dân` : ''}</span>
+            <Money value={priced?.subtotal ?? 0} className="text-xl font-bold tabular-nums text-ink" />
           </div>
           <button type="button" disabled={!priced} onClick={toConfirm}
-            className="h-12 rounded-lg bg-green-700 px-6 text-lg font-semibold text-white disabled:opacity-50">
+            className="flex h-[52px] shrink-0 items-center gap-1.5 rounded-xl bg-primary px-6 text-lg font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50">
             Tiếp tục
+            <ChevronRight aria-hidden className="size-5" />
           </button>
         </div>
       </div>

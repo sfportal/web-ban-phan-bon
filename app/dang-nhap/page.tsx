@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
+import { AuthShell } from '@/components/auth/AuthShell'
 import { SITE_NAME } from '@/lib/site'
 import { LoginForm } from './login-form'
 
@@ -13,15 +14,14 @@ async function LoginWithNotice({ searchParams }: Pick<PageProps<'/dang-nhap'>, '
 
 export default function LoginPage({ searchParams }: PageProps<'/dang-nhap'>) {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4 pt-10 text-base">
-      <h1 className="text-2xl font-bold">Đăng nhập</h1>
+    <AuthShell title="Đăng nhập" subtitle="Dành cho cộng tác viên, đại lý và nhân viên cửa hàng.">
       <Suspense fallback={<LoginForm />}>
         <LoginWithNotice searchParams={searchParams} />
       </Suspense>
-      <p>
+      <p className="text-stone-700">
         Chưa có tài khoản?{' '}
-        <Link href="/dang-ky" className="font-semibold text-green-700 underline">Đăng ký làm đối tác</Link>
+        <Link href="/dang-ky" className="font-semibold text-primary underline underline-offset-4">Đăng ký làm đối tác</Link>
       </p>
-    </main>
+    </AuthShell>
   )
 }

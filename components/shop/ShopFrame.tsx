@@ -1,3 +1,4 @@
+import { connection } from 'next/server'
 import { cache, Suspense, type ReactNode } from 'react'
 import { FloatingActions } from '@/components/CartFab'
 import { getPublicSettings } from '@/lib/catalog/queries'
@@ -6,8 +7,13 @@ import { createServerClient } from '@/lib/supabase/server'
 import { SiteFooter } from './SiteFooter'
 import { SiteHeader } from './SiteHeader'
 
-// Header và footer cùng đọc cài đặt công khai: một truy vấn mỗi yêu cầu.
-const loadSettings = cache(() => getPublicSettings(createServerClient()))
+// Header và footer cùng đọc cài đặt công khai: một truy vấn mỗi yêu cầu. Chờ request thật trước
+// (như guard): người đã đăng nhập có cookie phiên, supabase-js đọc Date.now() khi kiểm hạn phiên —
+// lúc Next tải trước trang ở pha prerender sẽ báo lỗi blocking-prerender-current-time.
+const loadSettings = cache(async () => {
+  await connection()
+  return getPublicSettings(createServerClient())
+})
 
 async function Header() {
   const { storeName } = await loadSettings()

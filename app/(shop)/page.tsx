@@ -1,3 +1,4 @@
+import { connection } from 'next/server'
 import { Suspense } from 'react'
 import { CategoryTiles } from '@/components/shop/CategoryTiles'
 import { Hero } from '@/components/shop/Hero'
@@ -9,6 +10,9 @@ import { getCatalog } from '@/lib/catalog/queries'
 import { createServerClient } from '@/lib/supabase/server'
 
 async function Shop() {
+  // Giá khuyến mãi theo giờ lúc nhận request: chờ request thật trước khi đọc đồng hồ, để bản
+  // tải trước lúc runtime (partialPrefetching) không đọc Date ở pha prerender (lỗi blocking-prerender-current-time).
+  await connection()
   const catalog = await getCatalog(createServerClient())
   const featured = catalog.products.filter((p) => p.isFeatured && p.inStock).slice(0, 8)
   const counts: Record<string, number> = {}
@@ -24,7 +28,7 @@ async function Shop() {
         </section>
       )}
       <TrustStrip />
-      <Storefront products={catalog.products} categories={catalog.categories} promos={catalog.promos} />
+      <Storefront products={catalog.products} categories={catalog.categories} promos={catalog.promos} now={now} />
     </>
   )
 }

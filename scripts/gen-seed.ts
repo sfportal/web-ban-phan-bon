@@ -1,6 +1,6 @@
 // npm run data:gen — sinh SQL từ data/categories.json + data/products.json:
 //   supabase/seed.sql                    (local/test: db:reset chạy sau migrations)
-//   supabase/data-update-production.sql  (bản thật đang chạy: cập nhật dữ liệu, chạy lại an toàn)
+//   supabase/data-update-production.sql  (bản thật đang chạy: chuyển dữ liệu mẫu MỘT LẦN — xem README)
 //   supabase/setup-production.sql        (dự án Supabase mới: migrations + seed + bucket ảnh)
 // Thứ tự trong SQL theo đúng thứ tự file JSON để diff dễ đọc.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -161,7 +161,9 @@ where c.slug is null and c.name = v.match_name
   return `begin;
 ${GENERATED}
 -- Cập nhật dữ liệu Supabase bản thật sang bộ sản phẩm thật. Chạy SAU migration 0005, trong SQL Editor.
--- Chạy lại nhiều lần an toàn. Không đụng tới đối tác, đơn hàng, cài đặt.
+-- CHỈ CHẠY MỘT LẦN, khi chuyển bộ sản phẩm mẫu cũ sang bộ dữ liệu này. Đã thêm sản phẩm thật
+-- thì KHÔNG chạy lại: bước 5 xóa mọi sản phẩm không có trong data/products.json và chưa có đơn.
+-- Không đụng tới đối tác, đơn hàng, cài đặt.
 --  1. Nhóm cũ (theo tên cũ, rồi theo tên mới) được gắn slug, tên, ảnh, thứ tự mới — giữ id.
 --  2. Thêm/cập nhật nhóm theo slug.
 --  3. Bảo đảm 2 bậc đối tác; tỷ lệ theo nhóm upsert theo (bậc, nhóm).

@@ -26,21 +26,26 @@ export function replaceShopParams(patch: { nhom?: string | null; q?: string | nu
   window.history.replaceState(null, '', `/${qs ? `?${qs}` : ''}${window.location.hash}`)
 }
 
-/** Lưới sản phẩm trang chủ: lọc theo nhóm (?nhom=) và từ khóa (?q=, ô tìm trên header). */
+/**
+ * Lưới sản phẩm trang chủ: lọc theo nhóm (?nhom=) và từ khóa (?q=, ô tìm trên header).
+ * `now` là giờ server lúc render: giá khuyến mãi phải khớp HTML đã render sẵn — dùng đồng hồ máy
+ * khách thì lệch giờ sẽ làm hydrate không khớp (React bỏ DOM server, cú bấm sớm bị mất).
+ */
 export function Storefront({
   products,
   categories,
   promos,
+  now,
 }: {
   products: CatalogProduct[]
   categories: CatalogCategory[]
   promos: PromotionInput[]
+  now: Date
 }) {
   const params = useSearchParams()
   const nhom = params.get('nhom')
   const query = params.get('q') ?? ''
   const category = categories.find((c) => categoryKey(c) === nhom) ?? null
-  const now = useMemo(() => new Date(), [])
 
   const shown = useMemo(() => {
     const q = normalize(query.trim())

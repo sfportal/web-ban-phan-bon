@@ -71,7 +71,10 @@ test('CTV đăng ký → được duyệt → lên đơn cho 2 nông dân → đ
     ['Đã giao', 'Đã thu đủ tiền'],
     ['Đã thu đủ tiền', 'Trả hàng'],
   ] as const) {
+    // Chờ server ghi xong: nút vừa bấm biến mất sau router.refresh(). Chỉ chờ nút kế tiếp là
+    // chưa đủ — ở "Đã giao", nút "Trả hàng" đã có sẵn trước khi bấm "Đã thu đủ tiền".
     await actions.getByRole('button', { name: label, exact: true }).click()
+    await expect(actions.getByRole('button', { name: label, exact: true })).toHaveCount(0)
     await expect(actions.getByRole('button', { name: next, exact: true })).toBeVisible()
   }
 

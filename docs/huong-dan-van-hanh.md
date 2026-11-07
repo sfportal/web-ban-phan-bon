@@ -6,7 +6,13 @@ trình duyệt (máy tính hoặc điện thoại).
 ## 0. Đăng nhập và các khu của website
 
 - Vào trang `/dang-nhap` (ví dụ `https://tencuahang.vn/dang-nhap`), nhập **số điện thoại** và
-  **mật khẩu** của tài khoản quản trị (người cài đặt website tạo cho bạn).
+  **mật khẩu** của tài khoản quản trị (người cài đặt website tạo cho bạn). Quản trị đăng nhập bằng
+  số điện thoại giống đối tác, không dùng email.
+- Tài khoản quản trị được tạo thế nào: người kỹ thuật chạy lệnh tạo nhân viên (README, mục *Tạo tài
+  khoản quản trị*), hoặc bạn tự đăng ký ở `/dang-ky` bằng số điện thoại của mình rồi người kỹ thuật
+  thêm một dòng vào bảng nhân viên (`staff`) bằng SQL trên Supabase và xóa hồ sơ đối tác chờ duyệt
+  vừa tạo. Từ đó số điện thoại này đăng nhập thẳng vào khu quản trị. Muốn thêm nhân viên khác cũng
+  nhờ người kỹ thuật làm cùng cách (vai trò `staff` hoặc `admin`).
 - Đăng nhập xong sẽ vào **khu quản trị**. Thanh menu phía trên có các mục: Tổng quan, Đơn hàng,
   Hoa hồng, Sản phẩm, Nhóm, Bậc & tỷ lệ, Khuyến mãi, Đối tác, Nông dân, Cài đặt.
 - Có hai loại tài khoản cửa hàng:
@@ -56,22 +62,57 @@ Dùng khi có nhiều sản phẩm cần thêm hoặc đổi giá cùng lúc (c�
 1. Vào **Nhóm** và tạo đủ các nhóm sản phẩm trước (ví dụ: Phân NPK, Phân hữu cơ, Thuốc BVTV…).
 2. Vào **Sản phẩm** → bấm **Tải file mẫu** (file trống, đúng cột) hoặc **Xuất Excel** (file có sẵn
    toàn bộ sản phẩm hiện tại — tiện để sửa giá).
-3. Mở file bằng Excel. Hàng 1 là tiêu đề, **không được sửa**:
-   `SKU | Tên | Quy cách | Nhóm | Giá niêm yết | Còn hàng | Hiển thị | Mô tả`
+3. Mở file bằng Excel. Hàng 1 là tiêu đề, **không được sửa**. File mẫu có **15 cột**:
+   `SKU | Tên | Quy cách | Nhóm | Giá niêm yết | Còn hàng | Hiển thị | Mô tả | Thương hiệu |
+   Mô tả ngắn | Thành phần | Công dụng | Cách dùng | Cây trồng | Nổi bật`
    - **SKU:** mã sản phẩm, mỗi sản phẩm một mã khác nhau (ví dụ `NPK-161616`). SKU đã có trên
      website → dòng đó **cập nhật** sản phẩm; SKU mới → **tạo** sản phẩm mới.
    - **Nhóm:** gõ đúng tên nhóm đã tạo ở bước 1.
    - **Giá niêm yết:** số tiền bán lẻ, chỉ gõ số (ví dụ `850000`).
-   - **Còn hàng**, **Hiển thị:** gõ `có` hoặc `không`.
+   - **Còn hàng**, **Hiển thị**, **Nổi bật:** gõ `có` hoặc `không` (bỏ trống *Nổi bật* = không).
+   - **Công dụng**, **Cách dùng:** mỗi ý một dòng trong ô (trong Excel bấm `Alt + Enter` để xuống
+     dòng).
+   - **Cây trồng:** cách nhau bằng dấu phẩy, ví dụ `Lúa, Cà phê, Sầu riêng`.
+   - Các cột mô tả (từ *Thương hiệu* đến *Nổi bật*) bỏ trống được.
+   - **File mẫu cũ 8 cột** (chỉ đến cột *Mô tả*) vẫn nhập được: khi đó website chỉ cập nhật 8 cột
+     đó và **giữ nguyên** thương hiệu, mô tả ngắn, công dụng… đã có của sản phẩm.
 4. Lưu file (định dạng `.xlsx`).
 5. Quay lại trang **Sản phẩm** → bấm **Nhập Excel** → chọn file.
 6. Nếu file có lỗi, website liệt kê lỗi theo số dòng (ví dụ "dòng 7: Nhóm không tồn tại") và
    **không ghi dòng nào**. Sửa các dòng đó trong Excel rồi nhập lại. Không có lỗi thì sản phẩm
    được cập nhật ngay.
 
-Ảnh sản phẩm: mở từng sản phẩm, tải ảnh lên (JPG/PNG/WebP, tối đa 2MB) hoặc dán link ảnh.
 Hết hàng tạm thời: bỏ tích **Còn hàng** (khách vẫn thấy nhưng không đặt được). Ngừng bán: bỏ tích
 **Hiển thị** (ẩn hẳn khỏi website).
+
+### Thông tin hiển thị trên trang sản phẩm
+
+Mở một sản phẩm trong **Sản phẩm** để sửa từng ô (cùng nội dung với các cột Excel ở trên):
+
+- **Thương hiệu** (hiện phía trên tên sản phẩm) và **Mô tả ngắn** (một hai câu ngay dưới tên, cũng
+  dùng trên thẻ sản phẩm).
+- **Thành phần**, **Công dụng**, **Cách dùng**, **Cây trồng**, **Mô tả thêm**: mỗi ô có nội dung
+  thành một tab trên trang chi tiết (*Công dụng*, *Thành phần*, *Cách dùng*, *Cây phù hợp*, *Mô
+  tả*); ô trống thì tab đó không hiện. *Công dụng* và *Cách dùng* gõ **mỗi ý một dòng**; *Cây trồng*
+  cách nhau bằng dấu phẩy.
+- **Nổi bật:** tích để đưa sản phẩm lên mục **Sản phẩm nổi bật** ở trang chủ (hiện tối đa 8 sản
+  phẩm nổi bật đang còn hàng).
+
+**Giá là giá tham khảo.** Giá có sẵn khi cài website là giá tham khảo thị trường, không phải giá của
+cửa hàng — hãy rà và sửa **Giá niêm yết** từng sản phẩm (hoặc xuất Excel, sửa cột giá, nhập lại)
+trước khi nhận đơn thật. Chân trang website cũng ghi rõ "Giá là giá tham khảo".
+
+### Ảnh sản phẩm và ảnh nhóm
+
+- Sản phẩm chưa có ảnh hiện **hình minh họa bao bì tự vẽ** (màu theo nhóm, có tên và quy cách) —
+  đây chỉ là hình tạm. Nên **chụp ảnh thật** sản phẩm cửa hàng đang bán và tải lên thay: mở sản phẩm →
+  tải ảnh (JPG/PNG/WebP, tối đa 2MB; nên chụp vuông, nền sáng, rõ tem nhãn) hoặc dán link ảnh. Xóa
+  trống ô link để quay về hình minh họa.
+- Ảnh nhóm (ô nhóm ở trang chủ) và ảnh đồng ruộng trên trang chủ, trang đăng nhập lấy từ Unsplash và
+  Pexels — giấy phép cho dùng miễn phí; tác giả và link gốc từng ảnh ghi trong `docs/nguon-anh.md`.
+  Muốn đổi ảnh nhóm: **Nhóm** → dán link ảnh vào ô *Link ảnh nhóm* của nhóm đó → lưu.
+- **Không** dùng ảnh bao bì, logo tải từ website của hãng hay trang khác (có thể vi phạm bản quyền);
+  chỉ dùng ảnh cửa hàng tự chụp hoặc ảnh Unsplash/Pexels (khi đó ghi thêm nguồn vào `docs/nguon-anh.md`).
 
 ## 3. Tạo khuyến mãi
 

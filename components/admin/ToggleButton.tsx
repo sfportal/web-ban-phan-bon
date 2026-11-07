@@ -28,7 +28,7 @@ export function ToggleButton({
         })
       }
       className={`flex h-11 min-w-16 items-center justify-center rounded-full px-3 text-sm font-semibold disabled:opacity-60 ${
-        value ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+        value ? 'bg-primary-soft text-primary' : 'bg-stone-100 text-stone-600'
       }`}
     >
       {value ? 'Có' : 'Không'}

@@ -31,7 +31,7 @@ const ERRORS: Partial<Record<ErrorCode, string>> = {
   farmer_not_owned: 'Có nông dân không còn thuộc CTV của đơn. Hãy bỏ các dòng đó rồi lưu lại.',
 }
 const FALLBACK = 'Không lưu được. Kiểm tra kết nối mạng rồi thử lại.'
-const btn = 'flex h-11 flex-1 items-center justify-center rounded-lg px-4 font-semibold disabled:opacity-50'
+const btn = 'flex h-11 flex-1 items-center justify-center rounded-xl px-4 font-semibold disabled:opacity-50'
 
 function changeText(c: Change): string {
   if (c.field === 'price') return `giá đổi ${formatVnd(Number(c.old))} → ${formatVnd(Number(c.new))}`
@@ -81,7 +81,7 @@ export function StaffOrderEdit({ orderId, lines: initialLines }: { orderId: stri
     return (
       <button
         type="button"
-        className="h-11 self-start rounded-lg border border-green-700 px-4 font-semibold text-green-800"
+        className="h-11 self-start rounded-xl border border-primary/25 bg-white px-4 font-semibold text-primary hover:bg-primary-soft"
         onClick={() => { setLines(initialLines); setChanges(null); setError(null); setEditing(true) }}
       >
         Sửa đơn
@@ -94,17 +94,17 @@ export function StaffOrderEdit({ orderId, lines: initialLines }: { orderId: stri
   const hasGone = lines.some((l) => !l.available)
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border-2 border-green-700 p-3" aria-label="Sửa đơn">
+    <section className="flex flex-col gap-3 rounded-2xl border-2 border-primary/30 bg-white p-4" aria-label="Sửa đơn">
       <h2 className="text-lg font-bold">Sửa đơn</h2>
-      <p className="text-sm text-gray-700">Đơn được tính lại theo giá, khuyến mãi và bậc hiện tại của đối tác khi lưu.</p>
-      <ul className="flex flex-col divide-y">
+      <p className="text-sm text-stone-700">Đơn được tính lại theo giá, khuyến mãi và bậc hiện tại của đối tác khi lưu.</p>
+      <ul className="flex flex-col divide-y divide-stone-100">
         {lines.map((l) => {
           const c = changeOf.get(l.productId)
           return (
             <li key={l.key} className="flex flex-col gap-2 py-3">
               <span>
                 <span className="block font-semibold">{l.name}</span>
-                <span className="text-sm text-gray-600">{l.farmerName ? `${l.farmerName} · ` : ''}{l.unit}</span>
+                <span className="text-sm text-stone-600">{l.farmerName ? `${l.farmerName} · ` : ''}{l.unit}</span>
               </span>
               {!l.available ? (
                 <span className="text-red-700">Không còn bán — hãy bỏ khỏi đơn</span>
@@ -126,15 +126,15 @@ export function StaffOrderEdit({ orderId, lines: initialLines }: { orderId: stri
       <p className="flex justify-between text-lg">
         <span>Tổng theo giá bán</span><Money value={total} className="font-bold" />
       </p>
-      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-red-800">{error}</p>}
       {changes && !hasGone && (
-        <p role="status" className="rounded-lg bg-amber-50 p-3 text-amber-900">Giá đã thay đổi. Kiểm tra lại rồi bấm &quot;Lưu với giá mới&quot;.</p>
+        <p role="status" className="rounded-xl bg-amber-50 p-3 text-amber-900">Giá đã thay đổi. Kiểm tra lại rồi bấm &quot;Lưu với giá mới&quot;.</p>
       )}
       <div className="flex gap-2">
-        <button type="button" className={`${btn} border border-gray-300`} disabled={pending} onClick={() => setEditing(false)}>
+        <button type="button" className={`${btn} border border-stone-300`} disabled={pending} onClick={() => setEditing(false)}>
           Thôi
         </button>
-        <button type="button" className={`${btn} bg-green-700 text-white`} disabled={pending || hasGone || lines.length === 0}
+        <button type="button" className={`${btn} bg-primary text-white`} disabled={pending || hasGone || lines.length === 0}
           onClick={() => save(changes !== null)}>
           {pending ? 'Đang lưu…' : changes ? 'Lưu với giá mới' : 'Lưu'}
         </button>

@@ -1,7 +1,9 @@
 'use client'
 
+import { Percent } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
+import { Badge, EmptyState, type BadgeTone } from '@/components/ui'
 import { deletePromotion, savePromotion } from '@/lib/admin/promotions-actions'
 
 export type PromoRow = {
@@ -9,7 +11,8 @@ export type PromoRow = {
   type: 'percent' | 'fixed_price'; value: number; startDate: string; endDate: string; isActive: boolean; statusLabel: string
 }
 type Opt = { id: string; name: string }
-const input = 'h-11 rounded-lg border border-gray-300 px-3 text-base'
+const STATUS_TONE: Record<string, BadgeTone> = { 'Đang chạy': 'green', 'Sắp diễn ra': 'blue', 'Đã kết thúc': 'gray', 'Đang tắt': 'gray' }
+const input = 'h-11 rounded-xl border border-stone-300 bg-white px-3 text-base'
 
 function valueLabel(p: Pick<PromoRow, 'type' | 'value'>) {
   return p.type === 'percent' ? `Giảm ${p.value}%` : `Giá ${new Intl.NumberFormat('vi-VN').format(p.value)} đ`
@@ -38,20 +41,20 @@ export function PromotionManager({
   return (
     <div className="flex flex-col gap-4">
       {promotions.length === 0
-        ? <p className="py-6 text-center text-gray-600">Chưa có khuyến mãi nào.</p>
+        ? <EmptyState icon={<Percent className="size-7" />} title="Chưa có khuyến mãi nào" className="rounded-2xl border border-stone-200 bg-white" />
         : (
-          <ul className="divide-y rounded-xl border border-gray-200">
+          <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200 bg-white">
             {promotions.map((p) => (
-              <li key={p.id} className="flex flex-col gap-1 p-3">
+              <li key={p.id} className="flex flex-col gap-1 px-4 py-3 even:bg-stone-50/70">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <b>{p.name}</b>
-                  <span className="text-sm font-semibold text-gray-700">{p.statusLabel}</span>
+                  <Badge tone={STATUS_TONE[p.statusLabel] ?? 'gray'}>{p.statusLabel}</Badge>
                 </div>
                 <span>{p.scope === 'product' ? 'Sản phẩm' : 'Nhóm'}: {p.targetLabel} · {valueLabel(p)}</span>
-                <span className="text-sm text-gray-600">{p.startDate} đến {p.endDate}</span>
+                <span className="text-sm text-stone-600">{p.startDate} đến {p.endDate}</span>
                 {!readOnly && (
                   <div className="flex gap-2 pt-1">
-                    <button type="button" onClick={() => begin(p)} className="h-11 rounded-lg border border-green-700 px-4 font-semibold text-green-800">Sửa</button>
+                    <button type="button" onClick={() => begin(p)} className="h-11 rounded-xl border border-primary/25 bg-white px-4 font-semibold text-primary hover:bg-primary-soft">Sửa</button>
                     <button
                       type="button"
                       disabled={pending}
@@ -59,7 +62,7 @@ export function PromotionManager({
                         if (!confirm(`Xóa khuyến mãi “${p.name}”?`)) return
                         start(async () => { await deletePromotion(p.id); router.refresh() })
                       }}
-                      className="h-11 rounded-lg border border-red-300 px-4 font-semibold text-red-700 disabled:opacity-60"
+                      className="h-11 rounded-xl border border-red-300 bg-white px-4 font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                     >
                       Xóa
                     </button>
@@ -72,7 +75,7 @@ export function PromotionManager({
       {!readOnly && (
         <form
           key={formKey}
-          className="flex flex-col gap-3 rounded-xl border border-gray-200 p-3"
+          className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-4"
           onSubmit={(e) => {
             e.preventDefault()
             const form = new FormData(e.currentTarget)
@@ -105,19 +108,19 @@ export function PromotionManager({
             <input name="value" defaultValue={editing?.value} required inputMode="decimal" placeholder={type === 'percent' ? '% giảm' : 'Giá (đ)'} aria-label="Giá trị" className={`${input} w-32`} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <label className="flex flex-col text-sm text-gray-600">Từ ngày
+            <label className="flex flex-col text-sm text-stone-600">Từ ngày
               <input type="date" name="startDate" defaultValue={editing?.startDate ?? today} required className={input} />
             </label>
-            <label className="flex flex-col text-sm text-gray-600">Đến hết ngày
+            <label className="flex flex-col text-sm text-stone-600">Đến hết ngày
               <input type="date" name="endDate" defaultValue={editing?.endDate ?? today} required className={input} />
             </label>
           </div>
           <label className="flex h-11 items-center gap-2">
-            <input type="checkbox" name="isActive" defaultChecked={editing?.isActive ?? true} className="size-5" /> Đang bật
+            <input type="checkbox" name="isActive" defaultChecked={editing?.isActive ?? true} className="size-5 accent-primary" /> Đang bật
           </label>
           <div className="flex gap-2">
-            <button type="submit" disabled={pending} className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white disabled:opacity-60">Lưu</button>
-            {editing && <button type="button" onClick={() => begin(null)} className="h-11 rounded-lg border border-gray-300 px-4 font-semibold">Hủy</button>}
+            <button type="submit" disabled={pending} className="h-11 rounded-xl bg-primary px-4 font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-60">Lưu</button>
+            {editing && <button type="button" onClick={() => begin(null)} className="h-11 rounded-xl border border-stone-300 px-4 font-semibold">Hủy</button>}
           </div>
           {error && <p role="alert" className="text-red-700">{error}</p>}
         </form>

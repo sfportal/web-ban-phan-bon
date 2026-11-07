@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { AdminMain, Loading, PageHeader } from '@/components/admin/AdminPage'
 import { CategoryManager } from '@/components/admin/CategoryManager'
 import { requireStaff } from '@/lib/auth/guards'
 import { SITE_NAME } from '@/lib/site'
@@ -26,11 +27,11 @@ async function Categories() {
 
 export default function CategoriesPage() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4">
-      <h1 className="text-2xl font-bold">Nhóm sản phẩm</h1>
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <AdminMain width="narrow">
+      <PageHeader title="Nhóm sản phẩm" subtitle="Nhóm hiện thành ô có ảnh trên trang chủ cửa hàng, theo thứ tự bên dưới." />
+      <Suspense fallback={<Loading />}>
         <Categories />
       </Suspense>
-    </main>
+    </AdminMain>
   )
 }

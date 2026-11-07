@@ -1,5 +1,8 @@
+import { ClipboardList, Download, HandCoins, TrendingUp, Wallet } from 'lucide-react'
 import Link from 'next/link'
-import { Suspense } from 'react'
+import { Suspense, type ReactNode } from 'react'
+import { AdminMain, Loading, PageHeader } from '@/components/admin/AdminPage'
+import { Button, Card, Input, SectionHeader, StatCard } from '@/components/ui'
 import { dashboardStats } from '@/lib/admin/orders-actions'
 import { requireStaff } from '@/lib/auth/guards'
 import { formatVnd, vnDateInput, vnDayStart } from '@/lib/format'
@@ -7,16 +10,11 @@ import { SITE_NAME } from '@/lib/site'
 
 export const metadata = { title: `Tổng quan — ${SITE_NAME}` }
 
-const input = 'h-11 rounded-lg border border-gray-300 px-3 text-base'
-const button = 'flex h-11 items-center rounded-lg bg-green-700 px-4 font-semibold text-white'
-
-function Tile({ href, label, value, hint }: { href: string; label: string; value: string; hint?: string }) {
+function Tile({ href, label, value, hint, icon }: { href: string; label: string; value: string; hint?: string; icon: ReactNode }) {
   return (
     <li>
-      <Link href={href} title={hint} className="flex h-full flex-col gap-1 rounded-xl border border-gray-200 p-4">
-        <span className="text-gray-700">{label}</span>
-        <span className="text-2xl font-bold">{value}</span>
-        {hint && <span className="text-sm text-gray-600">{hint}</span>}
+      <Link href={href} title={hint} className="group block h-full rounded-2xl">
+        <StatCard label={label} value={value} hint={hint} icon={icon} className="h-full transition-colors group-hover:border-primary/40" />
       </Link>
     </li>
   )
@@ -29,52 +27,69 @@ async function Overview() {
   const monthStart = `${today.slice(0, 8)}01`
   return (
     <>
-      <ul className="grid gap-3 sm:grid-cols-2">
-        <Tile href={`/admin/don-hang?tu=${vnDateInput(vnDayStart(0))}`} label="Đơn mới hôm nay" value={String(stats.newToday)} />
-        <Tile href="/admin/don-hang?trang-thai=delivered" label="Đơn chờ thu tiền" value={String(stats.awaitingPayment)} hint="Đã giao, chưa thu đủ tiền" />
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Tile
+          href={`/admin/don-hang?tu=${vnDateInput(vnDayStart(0))}`}
+          label="Đơn mới hôm nay"
+          value={String(stats.newToday)}
+          icon={<ClipboardList className="size-5" />}
+        />
+        <Tile
+          href="/admin/don-hang?trang-thai=delivered"
+          label="Đơn chờ thu tiền"
+          value={String(stats.awaitingPayment)}
+          hint="Đã giao, chưa thu đủ tiền"
+          icon={<HandCoins className="size-5" />}
+        />
         <Tile
           href="/admin/don-hang?trang-thai=paid"
           label="Doanh số tháng"
           value={formatVnd(stats.monthRevenue)}
           hint="Tổng tiền các đơn chuyển sang “Đã thu đủ tiền” trong tháng này (giờ VN), không tính đơn sau đó trả hàng"
+          icon={<TrendingUp className="size-5" />}
         />
-        <Tile href="/admin/hoa-hong" label="Hoa hồng chờ chi" value={formatVnd(stats.pendingCommission)} hint="Mọi kỳ, đã trừ dòng âm do trả hàng" />
+        <Tile
+          href="/admin/hoa-hong"
+          label="Hoa hồng chờ chi"
+          value={formatVnd(stats.pendingCommission)}
+          hint="Mọi kỳ, đã trừ dòng âm do trả hàng"
+          icon={<Wallet className="size-5" />}
+        />
       </ul>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-bold">Xuất dữ liệu</h2>
-        <form action="/admin/xuat-du-lieu" method="get" className="flex flex-wrap items-end gap-2">
+      <Card as="section" className="flex flex-col gap-4 p-5">
+        <SectionHeader title="Xuất dữ liệu" subtitle="Mỗi dòng hàng một hàng, theo ngày tạo đơn (giờ VN), tối đa 366 ngày." />
+        <form action="/admin/xuat-du-lieu" method="get" className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="loai" value="don-hang" />
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-gray-700">Từ ngày</span>
-            <input type="date" name="tu" required defaultValue={monthStart} className={input} />
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-semibold text-stone-700">Từ ngày</span>
+            <Input type="date" name="tu" required defaultValue={monthStart} className="w-auto" />
           </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-gray-700">Đến ngày</span>
-            <input type="date" name="den" required defaultValue={today} className={input} />
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-semibold text-stone-700">Đến ngày</span>
+            <Input type="date" name="den" required defaultValue={today} className="w-auto" />
           </label>
-          <button type="submit" className={button}>Xuất đơn hàng (Excel)</button>
+          <Button type="submit"><Download aria-hidden className="size-5" />Xuất đơn hàng (Excel)</Button>
         </form>
-        <p className="text-sm text-gray-600">Mỗi dòng hàng một hàng, theo ngày tạo đơn (giờ VN), tối đa 366 ngày.</p>
         {role === 'admin' && (
-          <p>
-            <a href="/admin/xuat-du-lieu?loai=tat-ca" download className="font-semibold text-green-800 underline">
+          <p className="border-t border-stone-100 pt-3">
+            <a href="/admin/xuat-du-lieu?loai=tat-ca" download className="font-semibold text-primary underline underline-offset-4 hover:text-primary-hover">
               Xuất toàn bộ dữ liệu (sao lưu)
             </a>
           </p>
         )}
-      </section>
+      </Card>
     </>
   )
 }
 
 export default function AdminHome() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4">
-      <h1 className="text-2xl font-bold">Tổng quan</h1>
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <AdminMain>
+      <PageHeader title="Tổng quan" subtitle="Số liệu bán hàng hôm nay và trong tháng. Bấm vào từng ô để xem danh sách." />
+      <Suspense fallback={<Loading />}>
         <Overview />
       </Suspense>
-    </main>
+    </AdminMain>
   )
 }

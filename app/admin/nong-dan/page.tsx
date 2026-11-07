@@ -1,5 +1,8 @@
+import { ChevronRight, Search, Sprout } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
+import { AdminMain, Loading, PageHeader } from '@/components/admin/AdminPage'
+import { Button, Card, EmptyState, Input } from '@/components/ui'
 import { requireStaff } from '@/lib/auth/guards'
 import { SITE_NAME } from '@/lib/site'
 import { adminClient } from '@/lib/supabase/admin'
@@ -19,25 +22,39 @@ async function Farmers({ searchParams }: Pick<PageProps<'/admin/nong-dan'>, 'sea
   return (
     <>
       <form action="/admin/nong-dan" role="search" className="flex gap-2">
-        <input name="q" defaultValue={q} placeholder="Tên hoặc số điện thoại" aria-label="Tìm nông dân" className="h-11 min-w-0 flex-1 rounded-lg border border-gray-300 px-3 text-base" />
-        <button type="submit" className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white">Tìm</button>
+        <div className="relative min-w-0 flex-1">
+          <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-stone-400" />
+          <Input name="q" defaultValue={q} placeholder="Tên hoặc số điện thoại" aria-label="Tìm nông dân" className="pl-10" />
+        </div>
+        <Button type="submit">Tìm</Button>
       </form>
       {farmers.length === 0 ? (
-        <p className="py-8 text-center text-gray-600">Không có nông dân nào.</p>
+        <Card>
+          <EmptyState
+            icon={<Sprout className="size-7" />}
+            title={q ? `Không tìm thấy “${q}”` : 'Chưa có nông dân nào'}
+            description={q ? 'Thử tìm bằng số điện thoại hoặc một phần tên.' : 'Nông dân do CTV thêm khi lên đơn sẽ hiện ở đây.'}
+          />
+        </Card>
       ) : (
         <>
-          <ul className="divide-y rounded-xl border border-gray-200">
-            {farmers.slice(0, LIMIT).map((f) => (
-              <li key={f.id}>
-                <Link href={`/admin/nong-dan/${f.id}`} className="flex flex-col gap-1 p-3">
-                  <b>{f.name}</b>
-                  <span className="text-gray-700">{f.phone}{f.address && ` · ${f.address}`}</span>
-                  <span className="text-sm text-gray-600">CTV: {f.partners?.name ?? 'Chưa có chủ'}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          {farmers.length > LIMIT && <p className="text-sm text-gray-600">Chỉ hiện {LIMIT} kết quả đầu, hãy tìm theo tên hoặc số điện thoại để thu hẹp.</p>}
+          <Card as="div" className="overflow-hidden">
+            <ul className="divide-y divide-stone-100">
+              {farmers.slice(0, LIMIT).map((f) => (
+                <li key={f.id} className="even:bg-stone-50/70">
+                  <Link href={`/admin/nong-dan/${f.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-primary-soft/50">
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <b className="font-semibold">{f.name}</b>
+                      <span className="text-stone-700">{f.phone}{f.address && ` · ${f.address}`}</span>
+                      <span className="text-sm text-stone-600">CTV: {f.partners?.name ?? 'Chưa có chủ'}</span>
+                    </span>
+                    <ChevronRight aria-hidden className="size-5 shrink-0 text-stone-400" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+          {farmers.length > LIMIT && <p className="text-stone-600">Chỉ hiện {LIMIT} kết quả đầu, hãy tìm theo tên hoặc số điện thoại để thu hẹp.</p>}
         </>
       )}
     </>
@@ -46,11 +63,11 @@ async function Farmers({ searchParams }: Pick<PageProps<'/admin/nong-dan'>, 'sea
 
 export default function FarmersPage(props: PageProps<'/admin/nong-dan'>) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4">
-      <h1 className="text-2xl font-bold">Nông dân</h1>
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <AdminMain width="narrow">
+      <PageHeader title="Nông dân" subtitle="Khách của CTV. Mỗi nông dân thuộc một CTV phụ trách." />
+      <Suspense fallback={<Loading />}>
         <Farmers searchParams={props.searchParams} />
       </Suspense>
-    </main>
+    </AdminMain>
   )
 }

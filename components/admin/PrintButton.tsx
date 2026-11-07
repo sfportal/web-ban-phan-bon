@@ -1,9 +1,12 @@
 'use client'
 
+import { Printer } from 'lucide-react'
+import { Button } from '@/components/ui'
+
 export function PrintButton() {
   return (
-    <button type="button" onClick={() => window.print()} className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white print:hidden">
-      In phiếu
-    </button>
+    <Button onClick={() => window.print()} className="print:hidden">
+      <Printer aria-hidden className="size-5" />In phiếu
+    </Button>
   )
 }

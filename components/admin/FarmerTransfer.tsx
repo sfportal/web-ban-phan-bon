@@ -18,7 +18,7 @@ export function FarmerTransfer({ farmerId, ownerId, partners }: { farmerId: stri
   const options = partners.filter((p) => p.id !== ownerId)
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <select value={to} onChange={(e) => setTo(e.target.value)} aria-label="Chuyển sang CTV" className="h-11 min-w-0 flex-1 rounded-lg border border-gray-300 px-3 text-base">
+      <select value={to} onChange={(e) => setTo(e.target.value)} aria-label="Chuyển sang CTV" className="h-11 min-w-0 flex-1 rounded-xl border border-stone-300 bg-white px-3 text-base">
         <option value="" disabled>Chọn CTV nhận</option>
         {options.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
       </select>
@@ -33,11 +33,11 @@ export function FarmerTransfer({ farmerId, ownerId, partners }: { farmerId: stri
             if (res.status === 'ok') { setTo(''); router.refresh() }
           })
         }}
-        className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white disabled:opacity-60"
+        className="h-11 rounded-xl bg-primary px-4 font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-60"
       >
         Chuyển chủ
       </button>
-      {msg && <p role="status" className="w-full text-gray-700">{msg}</p>}
+      {msg && <p role="status" className="w-full text-stone-700">{msg}</p>}
     </div>
   )
 }

@@ -1,7 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { Upload } from 'lucide-react'
 import { useRef, useState, useTransition } from 'react'
+import { Button } from '@/components/ui'
 import { importProducts, type ImportResult } from '@/lib/admin/products-actions'
 
 /** Nhập Excel: có lỗi thì hiện danh sách theo dòng và không ghi gì. */
@@ -30,16 +32,12 @@ export function ImportExcel() {
           })
         }}
       />
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => ref.current?.click()}
-        className="h-11 rounded-lg border border-green-700 px-4 font-semibold text-green-800 disabled:opacity-60"
-      >
+      <Button variant="secondary" disabled={pending} onClick={() => ref.current?.click()}>
+        <Upload aria-hidden className="size-5" />
         {pending ? 'Đang nhập...' : 'Nhập Excel'}
-      </button>
+      </Button>
       {result && 'errors' in result && (
-        <div role="alert" className="rounded-lg bg-red-50 p-3 text-red-700">
+        <div role="alert" className="max-w-xl rounded-xl bg-red-50 p-3 text-red-700">
           <p className="font-semibold">Không nhập được, chưa có dòng nào được ghi ({result.errors.length} lỗi):</p>
           <ul className="mt-1 max-h-64 list-disc overflow-y-auto pl-5">
             {result.errors.slice(0, 200).map((er, i) => (
@@ -50,7 +48,7 @@ export function ImportExcel() {
         </div>
       )}
       {result && 'created' in result && (
-        <p role="status" className="rounded-lg bg-green-50 p-3 text-green-800">
+        <p role="status" className="rounded-xl bg-primary-soft p-3 text-primary-hover">
           Đã nhập xong: thêm mới {result.created}, cập nhật {result.updated} sản phẩm.
         </p>
       )}

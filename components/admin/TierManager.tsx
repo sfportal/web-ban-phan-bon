@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react'
 import { saveTier } from '@/lib/admin/tiers-actions'
 
 type Tier = { id: string; name: string; kind: 'commission' | 'wholesale'; partnerCount: number }
-const input = 'h-11 rounded-lg border border-gray-300 px-3 text-base'
+const input = 'h-11 rounded-xl border border-stone-300 bg-white px-3 text-base'
 const KIND_LABEL = { commission: 'CTV (hoa hồng)', wholesale: 'Đại lý (giá sỉ)' }
 
 function TierForm({ tier, readOnly }: { tier?: Tier; readOnly: boolean }) {
@@ -34,8 +34,8 @@ function TierForm({ tier, readOnly }: { tier?: Tier; readOnly: boolean }) {
         <option value="commission">{KIND_LABEL.commission}</option>
         <option value="wholesale">{KIND_LABEL.wholesale}</option>
       </select>
-      {!readOnly && <button type="submit" disabled={pending} className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white disabled:opacity-60">{tier ? 'Lưu' : 'Thêm bậc'}</button>}
-      {tier && <span className="text-sm text-gray-600">{tier.partnerCount} đối tác</span>}
+      {!readOnly && <button type="submit" disabled={pending} className="h-11 rounded-xl bg-primary px-4 font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-60">{tier ? 'Lưu' : 'Thêm bậc'}</button>}
+      {tier && <span className="text-sm text-stone-600">{tier.partnerCount} đối tác</span>}
       {msg && <p role="alert" className="w-full text-red-700">{msg}</p>}
     </form>
   )
@@ -44,8 +44,8 @@ function TierForm({ tier, readOnly }: { tier?: Tier; readOnly: boolean }) {
 export function TierManager({ tiers, readOnly }: { tiers: Tier[]; readOnly: boolean }) {
   return (
     <div className="flex flex-col gap-3">
-      <ul className="divide-y rounded-xl border border-gray-200">
-        {tiers.map((t) => <li key={t.id} className="p-3"><TierForm tier={t} readOnly={readOnly} /></li>)}
+      <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200 bg-white">
+        {tiers.map((t) => <li key={t.id} className="px-4 py-3 even:bg-stone-50/70"><TierForm tier={t} readOnly={readOnly} /></li>)}
       </ul>
       {!readOnly && <TierForm readOnly={false} />}
     </div>

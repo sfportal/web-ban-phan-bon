@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
+import { AdminMain, Loading, PageHeader } from '@/components/admin/AdminPage'
 import { ProductForm, type ProductFormValues } from '@/components/admin/ProductForm'
 import { requireStaff } from '@/lib/auth/guards'
 import { SITE_NAME } from '@/lib/site'
@@ -13,7 +14,7 @@ async function Editor({ params }: Pick<PageProps<'/admin/san-pham/[id]'>, 'param
   await requireStaff('admin')
   const { id } = await params
   const db = adminClient()
-  const { data: categories } = await db.from('categories').select('id, name').order('sort_order').order('name').throwOnError()
+  const { data: categories } = await db.from('categories').select('id, name, slug').order('sort_order').order('name').throwOnError()
 
   let initial: ProductFormValues = {
     sku: '', name: '', unit: '', categoryId: '', listPrice: 0, imageUrl: null, inStock: true, isActive: true, description: '',
@@ -33,7 +34,11 @@ async function Editor({ params }: Pick<PageProps<'/admin/san-pham/[id]'>, 'param
   }
   return (
     <>
-      <h1 className="text-2xl font-bold">{initial.id ? 'Sửa sản phẩm' : 'Thêm sản phẩm'}</h1>
+      <PageHeader
+        back={{ href: '/admin/san-pham', label: 'Sản phẩm' }}
+        title={initial.id ? initial.name : 'Thêm sản phẩm'}
+        subtitle={initial.id ? `Mã SKU ${initial.sku}` : 'Điền thông tin, xem trước bên phải rồi bấm Lưu.'}
+      />
       <ProductForm initial={initial} categories={categories} />
     </>
   )
@@ -41,10 +46,10 @@ async function Editor({ params }: Pick<PageProps<'/admin/san-pham/[id]'>, 'param
 
 export default function ProductEditPage({ params }: PageProps<'/admin/san-pham/[id]'>) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4">
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <AdminMain>
+      <Suspense fallback={<Loading />}>
         <Editor params={params} />
       </Suspense>
-    </main>
+    </AdminMain>
   )
 }

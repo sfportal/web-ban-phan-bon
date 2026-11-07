@@ -32,7 +32,7 @@ export function OrderStatusActions({ orderId, status }: { orderId: string; statu
   }
 
   return (
-    <section className="flex flex-col gap-2 rounded-xl border border-gray-200 p-3" aria-label="Đổi trạng thái">
+    <section className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-4" aria-label="Đổi trạng thái">
       <h2 className="text-lg font-bold">Đổi trạng thái</h2>
       <input
         value={note}
@@ -40,7 +40,7 @@ export function OrderStatusActions({ orderId, status }: { orderId: string; statu
         maxLength={500}
         placeholder="Ghi chú (không bắt buộc)"
         aria-label="Ghi chú đổi trạng thái"
-        className="h-11 rounded-lg border border-gray-300 px-3 text-base"
+        className="h-11 rounded-xl border border-stone-300 bg-white px-3 text-base placeholder:text-stone-400"
       />
       <div className="flex flex-wrap gap-2">
         {targets.map((to) => (
@@ -49,15 +49,15 @@ export function OrderStatusActions({ orderId, status }: { orderId: string; statu
             type="button"
             disabled={pending}
             onClick={() => change(to)}
-            className={`h-11 rounded-lg px-4 font-semibold disabled:opacity-50 ${
-              DANGER.includes(to) ? 'border border-red-700 text-red-700' : 'bg-green-700 text-white'
+            className={`h-11 rounded-xl px-4 font-semibold transition-colors disabled:opacity-50 ${
+              DANGER.includes(to) ? 'border border-red-700/40 bg-white text-red-700 hover:bg-red-50' : 'bg-primary text-white hover:bg-primary-hover'
             }`}
           >
             {STATUS_LABEL[to]}
           </button>
         ))}
       </div>
-      {msg && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">{msg}</p>}
+      {msg && <p role="alert" className="rounded-xl bg-red-50 p-3 text-red-800">{msg}</p>}
     </section>
   )
 }

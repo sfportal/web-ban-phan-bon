@@ -1,10 +1,13 @@
+import { Printer } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Suspense } from 'react'
+import { Suspense, type ReactNode } from 'react'
+import { AdminMain, Loading, PageHeader } from '@/components/admin/AdminPage'
 import { OrderStatusActions } from '@/components/admin/OrderStatusActions'
 import { StaffOrderEdit, type StaffEditLine } from '@/components/admin/StaffOrderEdit'
 import { Money } from '@/components/Money'
 import { StatusBadge } from '@/components/StatusBadge'
+import { Badge, Button, Card } from '@/components/ui'
 import { requireStaff } from '@/lib/auth/guards'
 import { getActivePromos, getProductsByIds } from '@/lib/catalog/queries'
 import { formatDateTime } from '@/lib/format'
@@ -51,126 +54,143 @@ async function OrderDetail({ params }: Pick<PageProps<'/admin/don-hang/[id]'>, '
     : []
   const partner = order.partners
 
+  const linkCls = 'font-semibold text-primary underline-offset-4 hover:underline'
+  const info: [string, ReactNode][] = order.source === 'retail'
+    ? [
+        ['Khách lẻ', <><b>{order.retail_name}</b> · {order.retail_phone}</>],
+        ['Địa chỉ', order.retail_address],
+        ['Thanh toán', order.payment_method === 'transfer' ? 'Chuyển khoản' : 'COD'],
+        ...(partner ? [['Khách của CTV', <Link key="p" href={`/admin/doi-tac/${partner.id}`} className={linkCls}>{partner.name}</Link>] as [string, ReactNode]] : []),
+      ]
+    : [
+        ...(partner
+          ? [['Đối tác', <><Link href={`/admin/doi-tac/${partner.id}`} className={linkCls}>{partner.name}</Link> · {partner.phone}</>] as [string, ReactNode]]
+          : []),
+        ...(partner?.partner_tiers ? [['Bậc', partner.partner_tiers.name] as [string, ReactNode]] : []),
+        ...(order.delivery_address ? [['Giao tới', order.delivery_address] as [string, ReactNode]] : []),
+      ]
+  if (order.note) info.push(['Ghi chú', order.note])
+
   return (
     <>
-      <div className="flex flex-col gap-1">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold">{order.code}</h1>
-          <StatusBadge status={order.status} />
-        </div>
-        <p className="text-gray-600">Đặt lúc {formatDateTime(order.created_at)}</p>
-        {order.source === 'retail' ? (
-          <>
-            <p>Đơn lẻ: <b>{order.retail_name}</b> · {order.retail_phone}</p>
-            <p>Địa chỉ: {order.retail_address}</p>
-            <p>Thanh toán: {order.payment_method === 'transfer' ? 'Chuyển khoản' : 'COD'}</p>
-            {partner && <p className="text-gray-700">Khách của CTV <Link href={`/admin/doi-tac/${partner.id}`} className="font-semibold text-green-800 underline">{partner.name}</Link></p>}
-          </>
-        ) : (
-          <>
-            {partner && (
-              <p>
-                <Link href={`/admin/doi-tac/${partner.id}`} className="font-semibold text-green-800 underline">{partner.name}</Link>
-                {' '}· {partner.phone}{partner.partner_tiers && ` · ${partner.partner_tiers.name}`}
-              </p>
-            )}
-            {order.delivery_address && <p>Giao tới: {order.delivery_address}</p>}
-          </>
-        )}
-        {order.note && <p className="text-gray-700">Ghi chú: {order.note}</p>}
-      </div>
+      <PageHeader
+        back={{ href: '/admin/don-hang', label: 'Đơn hàng' }}
+        title={<span className="flex flex-wrap items-center gap-3">{order.code}<StatusBadge status={order.status} /></span>}
+        subtitle={`Đặt lúc ${formatDateTime(order.created_at)}`}
+        actions={
+          <Button href={`/admin/don-hang/${order.id}/in`} variant="secondary">
+            <Printer aria-hidden className="size-5" />In phiếu giao hàng
+          </Button>
+        }
+      />
 
-      <div className="flex flex-wrap gap-2">
-        <Link href={`/admin/don-hang/${order.id}/in`} className="flex h-11 items-center rounded-lg border border-gray-300 px-4 font-semibold">
-          In phiếu giao hàng
-        </Link>
-      </div>
-
-      <OrderStatusActions orderId={order.id} status={order.status} />
-
-      <section className="flex flex-col gap-3">
-        {groups.map((g) => (
-          <div key={g.key} className="flex flex-col gap-2 rounded-xl border border-gray-200 p-3">
-            {g.title && <h2 className="font-bold">{g.title}</h2>}
-            <ul className="flex flex-col divide-y">
-              {g.lines.map((l) => {
-                const p = product.get(l.product_id)
-                return (
-                  <li key={l.id} className="flex flex-col gap-0.5 py-2">
-                    <span className="font-semibold">{p?.name ?? 'Sản phẩm'}{p?.unit && <span className="font-normal text-gray-600"> · {p.unit}</span>}</span>
-                    <span className="flex justify-between gap-2 text-gray-700">
-                      <span>{l.qty} × <Money value={Number(l.sale_price_snap)} /></span>
-                      <Money value={Number(l.line_total)} className="font-semibold text-gray-900" />
-                    </span>
-                    {Number(l.line_commission) > 0 && (
-                      <span className="text-sm text-green-800">Hoa hồng {Number(l.rate_pct_snap)}% · <Money value={Number(l.line_commission)} /></span>
-                    )}
-                    {l.line_partner_price !== null && (
-                      <span className="text-sm text-green-800">Giá đại lý <Money value={Number(l.line_partner_price)} /> ({Number(l.rate_pct_snap)}%)</span>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))}
-      </section>
-
-      <dl className="flex flex-col gap-1 rounded-xl bg-gray-50 p-4">
-        <div className="flex justify-between"><dt>Số lượng</dt><dd>{order.total_qty}</dd></div>
-        <div className="flex justify-between">
-          <dt>{order.partner_payable !== null ? 'Tổng theo giá bán lẻ' : 'Tổng tiền'}</dt>
-          <dd><Money value={Number(order.subtotal)} className="font-semibold" /></dd>
-        </div>
-        {order.partner_payable !== null && (
-          <div className="flex justify-between text-lg"><dt>Đại lý phải trả</dt><dd><Money value={Number(order.partner_payable)} className="font-bold" /></dd></div>
-        )}
-        {Number(order.commission_expected) > 0 && (
-          <div className="flex justify-between text-green-800"><dt>Hoa hồng dự kiến</dt><dd><Money value={Number(order.commission_expected)} className="font-semibold" /></dd></div>
-        )}
-      </dl>
-
-      {editable && <StaffOrderEdit orderId={order.id} lines={editLines} />}
-
-      {entries.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-bold">Hoa hồng đã ghi nhận</h2>
-          <ul className="flex flex-col gap-1">
-            {entries.map((e) => (
-              <li key={e.id} className="flex flex-wrap justify-between gap-2">
-                <span>{e.kind === 'earn' ? 'Ghi nhận' : 'Hoàn (trả hàng)'} · kỳ {e.period} · {e.status === 'paid' ? 'Đã chi' : 'Chờ chi'}</span>
-                <Money value={Number(e.amount)} className="font-semibold" />
-              </li>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-4">
+          <Card as="section" className="overflow-hidden">
+            <h2 className="border-b border-stone-100 px-4 py-3 text-lg font-bold">Hàng trong đơn</h2>
+            {groups.map((g) => (
+              <div key={g.key} className="border-b border-stone-100 last:border-0">
+                {g.title && <h3 className="bg-stone-50 px-4 py-2 font-semibold text-stone-700">{g.title}</h3>}
+                <ul className="flex flex-col divide-y divide-stone-100">
+                  {g.lines.map((l) => {
+                    const p = product.get(l.product_id)
+                    return (
+                      <li key={l.id} className="flex flex-col gap-0.5 px-4 py-3">
+                        <span className="font-semibold">{p?.name ?? 'Sản phẩm'}{p?.unit && <span className="font-normal text-stone-600"> · {p.unit}</span>}</span>
+                        <span className="flex justify-between gap-2 text-stone-700">
+                          <span className="tabular-nums">{l.qty} × <Money value={Number(l.sale_price_snap)} /></span>
+                          <Money value={Number(l.line_total)} className="font-semibold tabular-nums text-ink" />
+                        </span>
+                        {Number(l.line_commission) > 0 && (
+                          <span className="text-sm text-primary">Hoa hồng {Number(l.rate_pct_snap)}% · <Money value={Number(l.line_commission)} /></span>
+                        )}
+                        {l.line_partner_price !== null && (
+                          <span className="text-sm text-primary">Giá đại lý <Money value={Number(l.line_partner_price)} /> ({Number(l.rate_pct_snap)}%)</span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
             ))}
-          </ul>
-        </section>
-      )}
+            <dl className="flex flex-col gap-1.5 border-t border-stone-200 bg-stone-50 px-4 py-4">
+              <div className="flex justify-between"><dt>Số lượng</dt><dd className="tabular-nums">{order.total_qty}</dd></div>
+              <div className="flex justify-between">
+                <dt>{order.partner_payable !== null ? 'Tổng theo giá bán lẻ' : 'Tổng tiền'}</dt>
+                <dd><Money value={Number(order.subtotal)} className="font-semibold tabular-nums" /></dd>
+              </div>
+              {order.partner_payable !== null && (
+                <div className="flex justify-between text-lg"><dt>Đại lý phải trả</dt><dd><Money value={Number(order.partner_payable)} className="font-bold tabular-nums" /></dd></div>
+              )}
+              {Number(order.commission_expected) > 0 && (
+                <div className="flex justify-between text-primary"><dt>Hoa hồng dự kiến</dt><dd><Money value={Number(order.commission_expected)} className="font-semibold tabular-nums" /></dd></div>
+              )}
+            </dl>
+          </Card>
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-bold">Lịch sử trạng thái</h2>
-        <ol className="flex flex-col gap-1">
-          {log.map((e) => (
-            <li key={e.id} className="flex flex-col">
-              <span className="flex justify-between gap-2">
-                <span>{STATUS_LABEL[e.to_status]}</span>
-                <span className="text-gray-600">{formatDateTime(e.changed_at)}</span>
-              </span>
-              {e.note && <span className="text-sm text-gray-700">{e.note}</span>}
-            </li>
-          ))}
-        </ol>
-      </section>
+          {editable && <StaffOrderEdit orderId={order.id} lines={editLines} />}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <Card as="section" className="flex flex-col gap-3 p-4">
+            <h2 className="text-lg font-bold">Người nhận</h2>
+            <dl className="flex flex-col gap-2">
+              {info.map(([k, v]) => (
+                <div key={k}>
+                  <dt className="text-sm text-stone-600">{k}</dt>
+                  <dd className="break-words">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+
+          <OrderStatusActions orderId={order.id} status={order.status} />
+
+          {entries.length > 0 && (
+            <Card as="section" className="flex flex-col gap-2 p-4">
+              <h2 className="text-lg font-bold">Hoa hồng đã ghi nhận</h2>
+              <ul className="flex flex-col divide-y divide-stone-100">
+                {entries.map((e) => (
+                  <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span className="flex flex-col gap-1">
+                      <span>{e.kind === 'earn' ? 'Ghi nhận' : 'Hoàn (trả hàng)'}, kỳ {e.period}</span>
+                      {e.status === 'paid' ? <Badge tone="green">Đã chi</Badge> : <Badge tone="yellow">Chờ chi</Badge>}
+                    </span>
+                    <Money value={Number(e.amount)} className="font-semibold tabular-nums" />
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          <Card as="section" className="flex flex-col gap-3 p-4">
+            <h2 className="text-lg font-bold">Lịch sử trạng thái</h2>
+            <ol className="flex flex-col">
+              {log.map((e, i) => (
+                <li key={e.id} className="relative flex gap-3 pb-4 last:pb-0">
+                  {i < log.length - 1 && <span aria-hidden className="absolute left-[5px] top-4 h-full w-0.5 bg-stone-200" />}
+                  <span aria-hidden className={`relative mt-1.5 size-3 shrink-0 rounded-full ${i === log.length - 1 ? 'bg-primary ring-4 ring-primary-soft' : 'bg-stone-300'}`} />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="font-semibold">{STATUS_LABEL[e.to_status]}</span>
+                    <span className="text-sm text-stone-600">{formatDateTime(e.changed_at)}</span>
+                    {e.note && <span className="text-sm text-stone-700">{e.note}</span>}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </Card>
+        </div>
+      </div>
     </>
   )
 }
 
 export default function AdminOrderPage({ params }: PageProps<'/admin/don-hang/[id]'>) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4 text-base">
-      <Link href="/admin/don-hang" className="flex h-11 items-center font-semibold text-green-800">← Đơn hàng</Link>
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <AdminMain>
+      <Suspense fallback={<Loading />}>
         <OrderDetail params={params} />
       </Suspense>
-    </main>
+    </AdminMain>
   )
 }

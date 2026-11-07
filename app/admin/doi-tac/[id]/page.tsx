@@ -1,7 +1,8 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
+import { AdminMain, Loading, PageHeader } from '@/components/admin/AdminPage'
 import { PartnerActions } from '@/components/admin/PartnerActions'
+import { Card } from '@/components/ui'
 import { requireStaff } from '@/lib/auth/guards'
 import { formatDate } from '@/lib/format'
 import { SITE_NAME } from '@/lib/site'
@@ -34,24 +35,33 @@ async function Detail({ params }: Pick<PageProps<'/admin/doi-tac/[id]'>, 'params
   ]
   return (
     <>
-      <h1 className="text-2xl font-bold">{partner.name}</h1>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl border border-gray-200 p-3">
-        {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-gray-600">{k}</dt><dd>{v}</dd></div>)}
-      </dl>
+      <PageHeader
+        back={{ href: '/admin/doi-tac', label: 'Danh sách đối tác' }}
+        title={partner.name}
+        subtitle={partner.partner_tiers ? (partner.partner_tiers.kind === 'commission' ? 'Cộng tác viên' : 'Đại lý') : 'Chưa xếp bậc'}
+      />
+      <Card as="div" className="overflow-hidden">
+        <dl className="divide-y divide-stone-100">
+          {rows.map(([k, v]) => (
+            <div key={k} className="grid gap-1 px-4 py-3 sm:grid-cols-[12rem_1fr] sm:gap-4">
+              <dt className="text-stone-600">{k}</dt><dd className="break-words font-medium">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </Card>
       {role === 'admin' && (
         <PartnerActions partnerId={partner.id} status={partner.status} tierId={partner.tier_id} tiers={tiers} />
       )}
-      <Link href="/admin/doi-tac" className="flex h-11 items-center font-semibold text-green-800">← Danh sách đối tác</Link>
     </>
   )
 }
 
 export default function PartnerDetailPage(props: PageProps<'/admin/doi-tac/[id]'>) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4">
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <AdminMain width="narrow">
+      <Suspense fallback={<Loading />}>
         <Detail params={props.params} />
       </Suspense>
-    </main>
+    </AdminMain>
   )
 }

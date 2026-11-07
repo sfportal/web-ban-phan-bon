@@ -1,5 +1,8 @@
 import { Suspense } from 'react'
+import { Filter } from 'lucide-react'
+import { AdminMain, Loading, PageHeader } from '@/components/admin/AdminPage'
 import { OrderBulkList, type OrderRow } from '@/components/admin/OrderBulkList'
+import { Button, Card, Input, Select } from '@/components/ui'
 import { requireStaff } from '@/lib/auth/guards'
 import { vnDateStart } from '@/lib/format'
 import { STATUS_LABEL, type OrderStatus } from '@/lib/orders/status'
@@ -12,7 +15,8 @@ export const metadata = { title: `Đơn hàng — ${SITE_NAME}` }
 const LIMIT = 200
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const SOURCES = { 'doi-tac': 'partner', 'don-le': 'retail' } as const
-const input = 'h-11 rounded-lg border border-gray-300 px-3 text-base'
+const label = 'flex min-w-0 flex-col gap-1.5'
+const caption = 'text-sm font-semibold text-stone-700'
 
 const one = (v: string | string[] | undefined) => (typeof v === 'string' ? v : '')
 
@@ -52,41 +56,43 @@ async function Orders({ searchParams }: Pick<PageProps<'/admin/don-hang'>, 'sear
 
   return (
     <>
-      <form action="/admin/don-hang" role="search" className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1">
-          <span className="text-sm text-gray-700">Trạng thái</span>
-          <select name="trang-thai" defaultValue={status} className={input}>
-            <option value="">Tất cả</option>
-            {(Object.keys(STATUS_LABEL) as OrderStatus[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm text-gray-700">Nguồn</span>
-          <select name="nguon" defaultValue={nguon} className={input}>
-            <option value="">Tất cả</option>
-            <option value="doi-tac">Đối tác</option>
-            <option value="don-le">Đơn lẻ</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm text-gray-700">CTV / đại lý</span>
-          <select name="ctv" defaultValue={ctv} className={`${input} max-w-60`}>
-            <option value="">Tất cả</option>
-            {partners.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.phone}</option>)}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm text-gray-700">Từ ngày</span>
-          <input type="date" name="tu" defaultValue={from ? one(sp.tu) : ''} className={input} />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm text-gray-700">Đến ngày</span>
-          <input type="date" name="den" defaultValue={to ? one(sp.den) : ''} className={input} />
-        </label>
-        <button type="submit" className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white">Lọc</button>
-      </form>
+      <Card className="p-4">
+        <form action="/admin/don-hang" role="search" className="grid grid-cols-2 items-end gap-3 md:grid-cols-3 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
+          <label className={label}>
+            <span className={caption}>Trạng thái</span>
+            <Select name="trang-thai" defaultValue={status}>
+              <option value="">Tất cả</option>
+              {(Object.keys(STATUS_LABEL) as OrderStatus[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+            </Select>
+          </label>
+          <label className={label}>
+            <span className={caption}>Nguồn</span>
+            <Select name="nguon" defaultValue={nguon}>
+              <option value="">Tất cả</option>
+              <option value="doi-tac">Đối tác</option>
+              <option value="don-le">Đơn lẻ</option>
+            </Select>
+          </label>
+          <label className={`${label} col-span-2 md:col-span-1`}>
+            <span className={caption}>CTV / đại lý</span>
+            <Select name="ctv" defaultValue={ctv}>
+              <option value="">Tất cả</option>
+              {partners.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.phone}</option>)}
+            </Select>
+          </label>
+          <label className={label}>
+            <span className={caption}>Từ ngày</span>
+            <Input type="date" name="tu" defaultValue={from ? one(sp.tu) : ''} />
+          </label>
+          <label className={label}>
+            <span className={caption}>Đến ngày</span>
+            <Input type="date" name="den" defaultValue={to ? one(sp.den) : ''} />
+          </label>
+          <Button type="submit" className="col-span-2 md:col-span-1"><Filter aria-hidden className="size-5" />Lọc</Button>
+        </form>
+      </Card>
       {orders.length > LIMIT && (
-        <p className="text-sm text-gray-600">Chỉ hiện {LIMIT} đơn mới nhất, hãy lọc theo ngày, trạng thái hoặc CTV để thu hẹp.</p>
+        <p className="text-stone-600">Chỉ hiện {LIMIT} đơn mới nhất, hãy lọc theo ngày, trạng thái hoặc CTV để thu hẹp.</p>
       )}
       <OrderBulkList rows={rows} />
     </>
@@ -95,11 +101,11 @@ async function Orders({ searchParams }: Pick<PageProps<'/admin/don-hang'>, 'sear
 
 export default function OrdersPage(props: PageProps<'/admin/don-hang'>) {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 p-4">
-      <h1 className="text-2xl font-bold">Đơn hàng</h1>
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <AdminMain>
+      <PageHeader title="Đơn hàng" subtitle="Chọn nhiều đơn để đổi trạng thái cùng lúc. Bấm mã đơn để xem chi tiết và in phiếu giao." />
+      <Suspense fallback={<Loading />}>
         <Orders searchParams={props.searchParams} />
       </Suspense>
-    </main>
+    </AdminMain>
   )
 }

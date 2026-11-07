@@ -1,8 +1,9 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
+import { AdminMain, Loading, PageHeader } from '@/components/admin/AdminPage'
 import { FarmerTransfer } from '@/components/admin/FarmerTransfer'
 import { Money } from '@/components/Money'
+import { Card } from '@/components/ui'
 import { requireStaff } from '@/lib/auth/guards'
 import { formatDateTime } from '@/lib/format'
 import { STATUS_LABEL } from '@/lib/orders/status'
@@ -44,32 +45,36 @@ async function Detail({ params }: Pick<PageProps<'/admin/nong-dan/[id]'>, 'param
 
   return (
     <>
-      <h1 className="text-2xl font-bold">{farmer.name}</h1>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl border border-gray-200 p-3">
-        <dt className="text-gray-600">Số điện thoại</dt><dd>{farmer.phone}</dd>
-        <dt className="text-gray-600">Địa chỉ</dt><dd>{farmer.address ?? '—'}</dd>
-        <dt className="text-gray-600">CTV phụ trách</dt><dd>{farmer.partners?.name ?? 'Chưa có chủ'}</dd>
-      </dl>
+      <PageHeader back={{ href: '/admin/nong-dan', label: 'Danh sách nông dân' }} title={farmer.name} />
+      <Card as="div" className="overflow-hidden">
+        <dl className="divide-y divide-stone-100">
+          {([['Số điện thoại', farmer.phone], ['Địa chỉ', farmer.address ?? '—'], ['CTV phụ trách', farmer.partners?.name ?? 'Chưa có chủ']] as const).map(([k, v]) => (
+            <div key={k} className="grid gap-1 px-4 py-3 sm:grid-cols-[12rem_1fr] sm:gap-4">
+              <dt className="text-stone-600">{k}</dt><dd className="break-words font-medium">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </Card>
 
       {role === 'admin' && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-xl font-bold">Chuyển chủ</h2>
+        <Card as="section" className="flex flex-col gap-3 p-5">
+          <h2 className="text-xl font-bold tracking-tight">Chuyển chủ</h2>
           <FarmerTransfer
             farmerId={farmer.id}
             ownerId={farmer.owner_partner_id}
             partners={eligible.map((p) => ({ id: p.id, label: `${p.name} · ${p.phone}` }))}
           />
-        </section>
+        </Card>
       )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-xl font-bold">Lịch sử mua</h2>
-        {history.length === 0 ? <p className="text-gray-600">Chưa mua hàng.</p> : (
-          <ul className="divide-y rounded-xl border border-gray-200">
+        <h2 className="text-xl font-bold tracking-tight">Lịch sử mua</h2>
+        {history.length === 0 ? <p className="text-stone-600">Chưa mua hàng.</p> : (
+          <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200 bg-white">
             {history.map((l) => (
-              <li key={l.id} className="flex flex-col gap-1 p-3">
+              <li key={l.id} className="flex flex-col gap-1 px-4 py-3 even:bg-stone-50/70">
                 <span><b>{l.products?.name ?? 'Sản phẩm'}</b> × {l.qty}</span>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-stone-600">
                   {l.orders!.code} · {STATUS_LABEL[l.orders!.status]} · {formatDateTime(l.orders!.created_at)}
                 </span>
                 <Money value={Number(l.line_total)} />
@@ -80,29 +85,28 @@ async function Detail({ params }: Pick<PageProps<'/admin/nong-dan/[id]'>, 'param
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-xl font-bold">Lịch sử chuyển chủ</h2>
-        {log.length === 0 ? <p className="text-gray-600">Chưa từng chuyển chủ.</p> : (
-          <ul className="divide-y rounded-xl border border-gray-200">
+        <h2 className="text-xl font-bold tracking-tight">Lịch sử chuyển chủ</h2>
+        {log.length === 0 ? <p className="text-stone-600">Chưa từng chuyển chủ.</p> : (
+          <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200 bg-white">
             {log.map((l) => (
-              <li key={l.id} className="p-3">
+              <li key={l.id} className="px-4 py-3 even:bg-stone-50/70">
                 {label(l.from_partner_id)} → {label(l.to_partner_id)}
-                <span className="block text-sm text-gray-600">{formatDateTime(l.changed_at)}</span>
+                <span className="block text-sm text-stone-600">{formatDateTime(l.changed_at)}</span>
               </li>
             ))}
           </ul>
         )}
       </section>
-      <Link href="/admin/nong-dan" className="flex h-11 items-center font-semibold text-green-800">← Danh sách nông dân</Link>
     </>
   )
 }
 
 export default function FarmerDetailPage(props: PageProps<'/admin/nong-dan/[id]'>) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4">
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <AdminMain width="narrow">
+      <Suspense fallback={<Loading />}>
         <Detail params={props.params} />
       </Suspense>
-    </main>
+    </AdminMain>
   )
 }

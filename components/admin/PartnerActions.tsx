@@ -5,8 +5,8 @@ import { useState, useTransition } from 'react'
 import { approvePartner, changePartnerTier, resetPartnerPassword, setPartnerStatus, type PartnerResult } from '@/lib/admin/partners-actions'
 
 type Tier = { id: string; name: string; kind: 'commission' | 'wholesale' }
-const input = 'h-11 rounded-lg border border-gray-300 px-3 text-base'
-const btn = 'h-11 rounded-lg px-4 font-semibold disabled:opacity-60'
+const input = 'h-11 rounded-xl border border-stone-300 bg-white px-3 text-base'
+const btn = 'h-11 rounded-xl px-4 font-semibold disabled:opacity-60'
 const MESSAGES: Record<string, string> = {
   not_found: 'Không tìm thấy đối tác', not_pending: 'Đối tác không còn ở trạng thái chờ duyệt', is_pending: 'Đối tác chưa được duyệt',
   no_tier: 'Đối tác chưa có bậc', invalid_tier: 'Bậc không hợp lệ',
@@ -39,20 +39,20 @@ export function PartnerActions({
       {status === 'pending' ? (
         <div className="flex flex-wrap gap-2">
           {tierSelect}
-          <button type="button" disabled={pending || !tier} onClick={() => run(() => approvePartner(partnerId, tier))} className={`${btn} bg-green-700 text-white`}>Duyệt</button>
+          <button type="button" disabled={pending || !tier} onClick={() => run(() => approvePartner(partnerId, tier))} className={`${btn} bg-primary text-white`}>Duyệt</button>
         </div>
       ) : (
         <>
           <div className="flex flex-wrap gap-2">
             {tierSelect}
-            <button type="button" disabled={pending || !tier || tier === tierId} onClick={() => run(() => changePartnerTier(partnerId, tier))} className={`${btn} border border-green-700 text-green-800`}>Đổi bậc</button>
+            <button type="button" disabled={pending || !tier || tier === tierId} onClick={() => run(() => changePartnerTier(partnerId, tier))} className={`${btn} border border-primary/25 text-primary`}>Đổi bậc</button>
           </div>
           <div>
             <button
               type="button"
               disabled={pending}
               onClick={() => run(() => setPartnerStatus(partnerId, status === 'locked' ? 'active' : 'locked'))}
-              className={`${btn} border ${status === 'locked' ? 'border-green-700 text-green-800' : 'border-red-300 text-red-700'}`}
+              className={`${btn} border ${status === 'locked' ? 'border-primary/25 text-primary' : 'border-red-300 text-red-700'}`}
             >
               {status === 'locked' ? 'Mở khóa' : 'Khóa tài khoản'}
             </button>
@@ -70,18 +70,18 @@ export function PartnerActions({
               catch { setMsg('Không đặt lại được mật khẩu') }
             })
           }}
-          className={`${btn} border border-gray-300`}
+          className={`${btn} border border-stone-300`}
         >
           Đặt lại mật khẩu
         </button>
         {temp && (
-          <div role="status" className="flex flex-col gap-2 rounded-lg bg-amber-50 p-3">
+          <div role="status" className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3">
             <span>Mật khẩu tạm (chỉ hiện một lần): <b className="font-mono text-xl tracking-wider">{temp}</b></span>
-            <button type="button" onClick={() => setTemp('')} className={`${btn} border border-gray-300 self-start`}>Đã ghi lại</button>
+            <button type="button" onClick={() => setTemp('')} className={`${btn} border border-stone-300 self-start`}>Đã ghi lại</button>
           </div>
         )}
       </div>
-      {msg && <p role="status" className="text-gray-700">{msg}</p>}
+      {msg && <p role="status" className="text-stone-700">{msg}</p>}
     </div>
   )
 }

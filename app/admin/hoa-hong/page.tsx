@@ -1,5 +1,8 @@
 import { Suspense } from 'react'
+import { Download } from 'lucide-react'
+import { AdminMain, Loading, PageHeader } from '@/components/admin/AdminPage'
 import { CommissionPayout, type EntryRow } from '@/components/admin/CommissionPayout'
+import { Button, buttonClass, Input } from '@/components/ui'
 import { commissionReport } from '@/lib/admin/commission-actions'
 import { requireStaff } from '@/lib/auth/guards'
 import { vnPeriod } from '@/lib/format'
@@ -9,6 +12,7 @@ import { fetchAll } from '@/lib/supabase/fetch-all'
 
 export const metadata = { title: `Hoa hồng — ${SITE_NAME}` }
 
+const TITLE = 'Hoa hồng'
 const PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/
 
 async function Commissions({ searchParams }: Pick<PageProps<'/admin/hoa-hong'>, 'searchParams'>) {
@@ -28,23 +32,26 @@ async function Commissions({ searchParams }: Pick<PageProps<'/admin/hoa-hong'>, 
   }))
   return (
     <>
-      <div className="flex flex-wrap items-end gap-2">
-        <form action="/admin/hoa-hong" className="flex items-end gap-2">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm text-gray-700">Kỳ (tháng)</span>
-            <input type="month" name="ky" defaultValue={period} required className="h-11 rounded-lg border border-gray-300 px-3 text-base" />
-          </label>
-          <button type="submit" className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white">Xem</button>
-        </form>
-        {role === 'admin' && (
-          <a href={`/admin/xuat-du-lieu?loai=hoa-hong&ky=${period}`} download className="flex h-11 items-center rounded-lg border border-green-700 px-4 font-semibold text-green-800">
-            Xuất Excel
-          </a>
-        )}
-      </div>
-      <p className="text-sm text-gray-600">
-        Hoa hồng ghi nhận khi đơn chuyển sang “Đã thu đủ tiền”; trả hàng sau đó tạo dòng âm vào kỳ trả hàng.
-      </p>
+      <PageHeader
+        title={TITLE}
+        subtitle="Hoa hồng ghi nhận khi đơn chuyển sang “Đã thu đủ tiền”; trả hàng sau đó tạo dòng âm vào kỳ trả hàng."
+        actions={
+          <>
+            <form action="/admin/hoa-hong" className="flex items-end gap-2">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-semibold text-stone-700">Kỳ (tháng)</span>
+                <Input type="month" name="ky" defaultValue={period} required className="w-auto" />
+              </label>
+              <Button type="submit" variant="secondary">Xem</Button>
+            </form>
+            {role === 'admin' && (
+              <a href={`/admin/xuat-du-lieu?loai=hoa-hong&ky=${period}`} download className={buttonClass({ variant: 'secondary', className: 'self-end' })}>
+                <Download aria-hidden className="size-5" />Xuất Excel
+              </a>
+            )}
+          </>
+        }
+      />
       <CommissionPayout period={period} report={report} entries={rows} canPay={role === 'admin'} />
     </>
   )
@@ -52,11 +59,10 @@ async function Commissions({ searchParams }: Pick<PageProps<'/admin/hoa-hong'>, 
 
 export default function CommissionsPage(props: PageProps<'/admin/hoa-hong'>) {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 p-4">
-      <h1 className="text-2xl font-bold">Hoa hồng</h1>
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <AdminMain>
+      <Suspense fallback={<><PageHeader title={TITLE} /><Loading /></>}>
         <Commissions searchParams={props.searchParams} />
       </Suspense>
-    </main>
+    </AdminMain>
   )
 }

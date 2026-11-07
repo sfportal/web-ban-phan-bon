@@ -2,9 +2,12 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { ClipboardList } from 'lucide-react'
 import { useState, useTransition } from 'react'
+import { TableCard, tbody, td, th, thead } from '@/components/admin/table'
 import { Money } from '@/components/Money'
 import { StatusBadge } from '@/components/StatusBadge'
+import { Button, Card, EmptyState, Select } from '@/components/ui'
 import { bulkSetStatus } from '@/lib/admin/orders-actions'
 import { formatDateTime } from '@/lib/format'
 import { STATUS_LABEL, TRANSITIONS, type OrderStatus } from '@/lib/orders/status'
@@ -71,34 +74,38 @@ export function OrderBulkList({ rows }: { rows: OrderRow[] }) {
     })
   }
 
-  if (rows.length === 0) return <p className="py-8 text-center text-gray-600">Không có đơn nào.</p>
+  if (rows.length === 0)
+    return (
+      <Card>
+        <EmptyState icon={<ClipboardList className="size-7" />} title="Không có đơn nào" description="Thử bỏ bớt điều kiện lọc hoặc chọn khoảng ngày khác." />
+      </Card>
+    )
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3">
-        <span className="font-semibold">Đã chọn {chosen.length}</span>
-        <select
+      <div
+        className={`sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-2xl border p-3 transition-colors ${
+          chosen.length > 0 ? 'border-primary/30 bg-primary-soft' : 'border-stone-200 bg-white'
+        }`}
+      >
+        <span className="w-full font-semibold sm:mr-auto sm:w-auto">Đã chọn {chosen.length}<span className="font-normal text-stone-600"> / {rows.length} đơn</span></span>
+        <Select
           value={effectiveTarget}
           onChange={(e) => setTarget(e.target.value as OrderStatus)}
           aria-label="Trạng thái mới"
           disabled={targets.length === 0}
-          className="h-11 rounded-lg border border-gray-300 px-3 text-base"
+          className="min-w-0 flex-1 sm:w-64 sm:flex-none"
         >
           <option value="">Chuyển sang…</option>
           {targets.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-        </select>
-        <button
-          type="button"
-          onClick={apply}
-          disabled={pending || !effectiveTarget}
-          className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white disabled:opacity-50"
-        >
+        </Select>
+        <Button onClick={apply} disabled={pending || !effectiveTarget}>
           {pending ? 'Đang đổi…' : 'Áp dụng'}
-        </button>
+        </Button>
       </div>
-      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-red-800">{error}</p>}
       {result && (
-        <div role="status" className="rounded-lg bg-gray-50 p-3">
+        <div role="status" className="rounded-xl border border-stone-200 bg-white p-3">
           <p>Đã đổi {result.ok} đơn.{result.failed.length > 0 && ` ${result.failed.length} đơn lỗi:`}</p>
           {result.failed.length > 0 && (
             <ul className="list-disc pl-5 text-red-800">
@@ -107,44 +114,44 @@ export function OrderBulkList({ rows }: { rows: OrderRow[] }) {
           )}
         </div>
       )}
-      <div className="overflow-x-auto rounded-xl border border-gray-200">
+      <TableCard>
         <table className="w-full min-w-[44rem] text-left">
-          <thead className="bg-gray-50 text-sm text-gray-600">
+          <thead className={thead}>
             <tr>
-              <th className="w-12 p-3">
+              <th className={`${th} w-12`}>
                 <input
                   type="checkbox"
                   aria-label="Chọn tất cả"
                   checked={allSelected}
                   onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
-                  className="size-5"
+                  className="size-5 accent-primary"
                 />
               </th>
-              <th className="p-3">Mã đơn</th><th className="p-3">Ngày</th><th className="p-3">Người đặt</th>
-              <th className="p-3 text-right">Tổng</th><th className="p-3">Trạng thái</th>
+              <th className={th}>Mã đơn</th><th className={th}>Ngày</th><th className={th}>Người đặt</th>
+              <th className={`${th} text-right`}>Tổng</th><th className={th}>Trạng thái</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className={tbody}>
             {rows.map((r) => (
-              <tr key={r.id} className={selected.has(r.id) ? 'bg-green-50' : undefined}>
-                <td className="p-3">
-                  <input type="checkbox" aria-label={`Chọn ${r.code}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} className="size-5" />
+              <tr key={r.id} className={selected.has(r.id) ? 'bg-primary-soft!' : undefined}>
+                <td className={td}>
+                  <input type="checkbox" aria-label={`Chọn ${r.code}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} className="size-5 accent-primary" />
                 </td>
-                <td className="p-3 whitespace-nowrap">
-                  <Link href={`/admin/don-hang/${r.id}`} className="font-semibold text-green-800 underline">{r.code}</Link>
+                <td className={`${td} whitespace-nowrap`}>
+                  <Link href={`/admin/don-hang/${r.id}`} className="font-semibold text-primary underline-offset-4 hover:underline">{r.code}</Link>
                 </td>
-                <td className="p-3 whitespace-nowrap">{formatDateTime(r.createdAt)}</td>
-                <td className="p-3">
+                <td className={`${td} whitespace-nowrap text-stone-700`}>{formatDateTime(r.createdAt)}</td>
+                <td className={td}>
                   {r.who}
-                  {r.phone && <span className="block text-sm text-gray-600">{r.phone}</span>}
+                  {r.phone && <span className="block text-sm text-stone-600">{r.phone}</span>}
                 </td>
-                <td className="p-3 text-right whitespace-nowrap"><Money value={r.total} /></td>
-                <td className="p-3"><StatusBadge status={r.status} /></td>
+                <td className={`${td} text-right font-semibold tabular-nums whitespace-nowrap`}><Money value={r.total} /></td>
+                <td className={td}><StatusBadge status={r.status} /></td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </TableCard>
     </div>
   )
 }

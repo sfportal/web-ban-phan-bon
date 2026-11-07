@@ -1,3 +1,4 @@
+import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
@@ -43,88 +44,92 @@ async function DeliverySlip({ params }: Pick<PageProps<'/admin/don-hang/[id]/in'
   const cellCls = 'border border-gray-400 px-1.5 py-1'
 
   return (
-    <article className="mx-auto flex w-full max-w-[148mm] flex-col gap-3 text-sm text-black">
-      <style>{PRINT_CSS}</style>
-      <header className="flex items-start justify-between gap-2 border-b border-black pb-2">
-        <div>
-          <p className="text-lg font-bold">{storeName}</p>
-          <p className="text-base font-bold uppercase">Phiếu giao hàng</p>
-        </div>
-        <div className="text-right">
-          <p>Mã đơn: <b>{order.code}</b></p>
-          <p>Ngày: {formatDate(order.created_at)}</p>
-        </div>
-      </header>
-
-      <section>
-        <p>Người nhận: <b>{recipient.name}</b>{recipient.phone && ` · ${recipient.phone}`}</p>
-        <p>Điểm giao: {recipient.address ?? ''}</p>
-        <p>Thanh toán: {order.payment_method === 'transfer' ? 'Chuyển khoản' : 'Thu tiền khi giao (COD)'}</p>
-        {order.note && <p>Ghi chú: {order.note}</p>}
-      </section>
-
-      <table className="w-full border-collapse">
-        <thead>
-          <tr>
-            <th className={`${cellCls} text-left`}>Sản phẩm</th>
-            <th className={`${cellCls} text-right`}>SL</th>
-            <th className={`${cellCls} text-right`}>Đơn giá</th>
-            <th className={`${cellCls} text-right`}>Thành tiền</th>
-          </tr>
-        </thead>
-        {groups.map((g) => (
-          <tbody key={g.key}>
-            {g.title && (
-              <tr>
-                <td colSpan={4} className={`${cellCls} bg-gray-100 font-bold`}>{g.title}</td>
-              </tr>
-            )}
-            {g.lines.map((l) => (
-              <tr key={l.id}>
-                <td className={cellCls}>{l.products?.name}{l.products?.unit && ` (${l.products.unit})`}</td>
-                <td className={`${cellCls} text-right`}>{l.qty}</td>
-                <td className={`${cellCls} text-right whitespace-nowrap`}>{formatVnd(unitPrice(l))}</td>
-                <td className={`${cellCls} text-right whitespace-nowrap`}>{formatVnd(amount(l))}</td>
-              </tr>
-            ))}
-            {g.title && groups.length > 1 && (
-              <tr>
-                <td colSpan={3} className={`${cellCls} text-right`}>Cộng</td>
-                <td className={`${cellCls} text-right whitespace-nowrap font-semibold`}>{formatVnd(g.lines.reduce((s, l) => s + amount(l), 0))}</td>
-              </tr>
-            )}
-          </tbody>
-        ))}
-        <tfoot>
-          <tr>
-            <td className={`${cellCls} font-bold`}>Tổng cộng</td>
-            <td className={`${cellCls} text-right font-bold`}>{order.total_qty}</td>
-            <td className={cellCls} />
-            <td className={`${cellCls} text-right whitespace-nowrap font-bold`}>{formatVnd(total)}</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <section className="mt-4 grid grid-cols-2 gap-4 text-center">
-        <div className="pb-20">
-          <p className="font-bold">Người giao<br /><span className="font-normal italic">(ký, ghi rõ họ tên)</span></p>
-        </div>
-        <div className="pb-20">
-          <p className="font-bold">Người nhận<br /><span className="font-normal italic">(ký, ghi rõ họ tên)</span></p>
-        </div>
-      </section>
-
-      <div className="flex gap-2 print:hidden">
+    <>
+      <div className="mx-auto flex w-full max-w-[148mm] flex-wrap items-center justify-between gap-2 print:hidden">
+        <Link href={`/admin/don-hang/${order.id}`} className="-ml-1 flex h-11 items-center gap-1 font-semibold text-primary hover:text-primary-hover">
+          <ChevronLeft aria-hidden className="size-5" />Quay lại đơn
+        </Link>
         <PrintButton />
-        <Link href={`/admin/don-hang/${order.id}`} className="flex h-11 items-center rounded-lg border border-gray-300 px-4 font-semibold">Quay lại đơn</Link>
       </div>
-    </article>
+      <article className="mx-auto flex w-full max-w-[148mm] flex-col gap-3 rounded-sm bg-white p-5 text-sm text-black shadow-[0_1px_3px_rgba(28,25,23,0.12),0_12px_32px_-12px_rgba(28,25,23,0.18)] sm:p-8 print:rounded-none print:p-0 print:shadow-none">
+        <style>{PRINT_CSS}</style>
+        <header className="flex items-start justify-between gap-2 border-b border-black pb-2">
+          <div>
+            <p className="text-lg font-bold">{storeName}</p>
+            <p className="text-base font-bold uppercase">Phiếu giao hàng</p>
+          </div>
+          <div className="text-right">
+            <p>Mã đơn: <b>{order.code}</b></p>
+            <p>Ngày: {formatDate(order.created_at)}</p>
+          </div>
+        </header>
+
+        <section>
+          <p>Người nhận: <b>{recipient.name}</b>{recipient.phone && ` · ${recipient.phone}`}</p>
+          <p>Điểm giao: {recipient.address ?? ''}</p>
+          <p>Thanh toán: {order.payment_method === 'transfer' ? 'Chuyển khoản' : 'Thu tiền khi giao (COD)'}</p>
+          {order.note && <p>Ghi chú: {order.note}</p>}
+        </section>
+
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              <th className={`${cellCls} text-left`}>Sản phẩm</th>
+              <th className={`${cellCls} text-right`}>SL</th>
+              <th className={`${cellCls} text-right`}>Đơn giá</th>
+              <th className={`${cellCls} text-right`}>Thành tiền</th>
+            </tr>
+          </thead>
+          {groups.map((g) => (
+            <tbody key={g.key}>
+              {g.title && (
+                <tr>
+                  <td colSpan={4} className={`${cellCls} bg-gray-100 font-bold`}>{g.title}</td>
+                </tr>
+              )}
+              {g.lines.map((l) => (
+                <tr key={l.id}>
+                  <td className={cellCls}>{l.products?.name}{l.products?.unit && ` (${l.products.unit})`}</td>
+                  <td className={`${cellCls} text-right`}>{l.qty}</td>
+                  <td className={`${cellCls} text-right whitespace-nowrap`}>{formatVnd(unitPrice(l))}</td>
+                  <td className={`${cellCls} text-right whitespace-nowrap`}>{formatVnd(amount(l))}</td>
+                </tr>
+              ))}
+              {g.title && groups.length > 1 && (
+                <tr>
+                  <td colSpan={3} className={`${cellCls} text-right`}>Cộng</td>
+                  <td className={`${cellCls} text-right whitespace-nowrap font-semibold`}>{formatVnd(g.lines.reduce((s, l) => s + amount(l), 0))}</td>
+                </tr>
+              )}
+            </tbody>
+          ))}
+          <tfoot>
+            <tr>
+              <td className={`${cellCls} font-bold`}>Tổng cộng</td>
+              <td className={`${cellCls} text-right font-bold`}>{order.total_qty}</td>
+              <td className={cellCls} />
+              <td className={`${cellCls} text-right whitespace-nowrap font-bold`}>{formatVnd(total)}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <section className="mt-4 grid grid-cols-2 gap-4 text-center">
+          <div className="pb-20">
+            <p className="font-bold">Người giao<br /><span className="font-normal italic">(ký, ghi rõ họ tên)</span></p>
+          </div>
+          <div className="pb-20">
+            <p className="font-bold">Người nhận<br /><span className="font-normal italic">(ký, ghi rõ họ tên)</span></p>
+          </div>
+        </section>
+
+      </article>
+    </>
   )
 }
 
 export default function DeliverySlipPage({ params }: PageProps<'/admin/don-hang/[id]/in'>) {
   return (
-    <main className="flex flex-1 flex-col p-4 print:p-0">
+    <main className="flex flex-1 flex-col gap-4 px-4 py-6 lg:py-8 print:block print:p-0">
       <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
         <DeliverySlip params={params} />
       </Suspense>

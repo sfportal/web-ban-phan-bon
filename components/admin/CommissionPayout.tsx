@@ -2,8 +2,11 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Wallet } from 'lucide-react'
 import { useState, useTransition } from 'react'
+import { TableCard, tbody, th as thBase, thead } from '@/components/admin/table'
 import { Money } from '@/components/Money'
+import { Badge, Button, Card, EmptyState, SectionHeader } from '@/components/ui'
 import { markCommissionsPaid } from '@/lib/admin/commission-actions'
 import type { CommissionRow } from '@/lib/excel/export'
 import { formatDate } from '@/lib/format'
@@ -20,8 +23,8 @@ export type EntryRow = {
   orderCode: string
 }
 
-const th = 'p-3'
-const td = 'p-3 text-right whitespace-nowrap'
+const th = thBase
+const td = 'px-4 py-3 text-right tabular-nums whitespace-nowrap'
 
 /** Bảng tổng theo CTV của kỳ và danh sách dòng hoa hồng; admin đánh dấu đã chi (từng dòng / theo CTV). */
 export function CommissionPayout({
@@ -50,7 +53,12 @@ export function CommissionPayout({
     })
   }
 
-  if (report.length === 0) return <p className="py-8 text-center text-gray-600">Kỳ {period} chưa có hoa hồng.</p>
+  if (report.length === 0)
+    return (
+      <Card>
+        <EmptyState icon={<Wallet className="size-7" />} title={`Kỳ ${period} chưa có hoa hồng`} description="Hoa hồng xuất hiện khi đơn của CTV chuyển sang “Đã thu đủ tiền”." />
+      </Card>
+    )
 
   const sum = (k: keyof Omit<CommissionRow, 'partnerId' | 'partnerName' | 'phone'>) => report.reduce((s, r) => s + r[k], 0)
   const toggle = (id: string) =>
@@ -62,48 +70,48 @@ export function CommissionPayout({
     })
 
   return (
-    <div className="flex flex-col gap-6">
-      {msg && <p role="status" className="rounded-lg bg-gray-50 p-3">{msg}</p>}
-      <section className="flex flex-col gap-2">
-        <h2 className="text-xl font-bold">Theo CTV · kỳ {period}</h2>
-        <div className="overflow-x-auto rounded-xl border border-gray-200">
+    <div className="flex flex-col gap-8">
+      {msg && <p role="status" className="rounded-xl border border-stone-200 bg-white p-3">{msg}</p>}
+      <section className="flex flex-col gap-3">
+        <SectionHeader title={`Theo CTV, kỳ ${period}`} />
+        <TableCard>
           <table className="w-full min-w-[48rem] text-left">
-            <thead className="bg-gray-50 text-sm text-gray-600">
+            <thead className={thead}>
               <tr>
                 <th className={th}>CTV</th><th className={`${th} text-right`}>Ghi nhận</th><th className={`${th} text-right`}>Hoàn</th>
                 <th className={`${th} text-right`}>Thực nhận</th><th className={`${th} text-right`}>Chờ chi</th><th className={`${th} text-right`}>Đã chi</th>
-                {canPay && <th className={th} />}
+                {canPay && <th className={th}><span className="sr-only">Thao tác</span></th>}
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className={tbody}>
               {report.map((r) => {
                 const ids = entries.filter((e) => e.partnerId === r.partnerId && e.status === 'pending').map((e) => e.id)
                 return (
                   <tr key={r.partnerId}>
-                    <td className="p-3">
-                      <Link href={`/admin/doi-tac/${r.partnerId}`} className="font-semibold text-green-800 underline">{r.partnerName}</Link>
-                      <span className="block text-sm text-gray-600">{r.phone}</span>
+                    <td className="px-4 py-3">
+                      <Link href={`/admin/doi-tac/${r.partnerId}`} className="font-semibold text-primary underline-offset-4 hover:underline">{r.partnerName}</Link>
+                      <span className="block text-sm text-stone-600">{r.phone}</span>
                     </td>
                     <td className={td}><Money value={r.earned} /></td>
-                    <td className={td}><Money value={r.reversed} /></td>
+                    <td className={`${td} ${r.reversed ? 'text-red-700' : 'text-stone-500'}`}><Money value={r.reversed} /></td>
                     <td className={`${td} font-semibold`}><Money value={r.net} /></td>
-                    <td className={td}><Money value={r.pending} /></td>
+                    <td className={`${td} ${r.pending ? 'font-semibold text-yellow-900' : 'text-stone-500'}`}><Money value={r.pending} /></td>
                     <td className={td}><Money value={r.paid} /></td>
                     {canPay && (
-                      <td className="p-3">
-                        <button type="button" disabled={pending || ids.length === 0} onClick={() => pay(ids, `toàn bộ hoa hồng chờ chi của ${r.partnerName}`)}
-                          className="h-11 whitespace-nowrap rounded-lg border border-green-700 px-3 font-semibold text-green-800 disabled:opacity-40">
+                      <td className="px-4 py-2 text-right">
+                        <Button variant="secondary" disabled={pending || ids.length === 0} onClick={() => pay(ids, `toàn bộ hoa hồng chờ chi của ${r.partnerName}`)}
+                          className="whitespace-nowrap">
                           Đã chi
-                        </button>
+                        </Button>
                       </td>
                     )}
                   </tr>
                 )
               })}
             </tbody>
-            <tfoot className="bg-gray-50 font-bold">
+            <tfoot className="border-t-2 border-stone-200 bg-primary-soft/50 font-bold">
               <tr>
-                <td className="p-3">Tổng</td>
+                <td className="px-4 py-3">Tổng</td>
                 <td className={td}><Money value={sum('earned')} /></td>
                 <td className={td}><Money value={sum('reversed')} /></td>
                 <td className={td}><Money value={sum('net')} /></td>
@@ -113,48 +121,48 @@ export function CommissionPayout({
               </tr>
             </tfoot>
           </table>
-        </div>
+        </TableCard>
       </section>
 
-      <section className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-xl font-bold">Chi tiết</h2>
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <SectionHeader title="Chi tiết" subtitle={`${entries.length} dòng, ${pendingIds.length} dòng chờ chi`} />
           {canPay && (
             <div className="flex flex-wrap gap-2">
-              <button type="button" disabled={pending || pendingIds.length === 0}
-                onClick={() => setSelected(new Set(pendingIds))}
-                className="h-11 rounded-lg border border-gray-300 px-3 font-semibold disabled:opacity-40">
+              <Button variant="ghost" disabled={pending || pendingIds.length === 0} onClick={() => setSelected(new Set(pendingIds))}>
                 Chọn tất cả chờ chi
-              </button>
-              <button type="button" disabled={pending || selected.size === 0}
-                onClick={() => pay([...selected], `${selected.size} dòng đã chọn`)}
-                className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white disabled:opacity-40">
+              </Button>
+              <Button disabled={pending || selected.size === 0} onClick={() => pay([...selected], `${selected.size} dòng đã chọn`)}>
                 Đánh dấu đã chi ({selected.size})
-              </button>
+              </Button>
             </div>
           )}
         </div>
-        <ul className="divide-y rounded-xl border border-gray-200">
-          {entries.map((e) => (
-            <li key={e.id} className="flex items-center gap-3 p-3">
-              {canPay && (
-                <input type="checkbox" className="size-5" aria-label={`Chọn ${e.orderCode}`} disabled={e.status !== 'pending'}
-                  checked={selected.has(e.id)} onChange={() => toggle(e.id)} />
-              )}
-              <span className="flex flex-1 flex-col">
-                <span>
-                  <Link href={`/admin/don-hang/${e.orderId}`} className="font-semibold text-green-800 underline">{e.orderCode}</Link>
-                  {' '}· {nameOf.get(e.partnerId)}
+        <Card as="div" className="overflow-hidden">
+          <ul className="divide-y divide-stone-100">
+            {entries.map((e) => (
+              <li key={e.id} className={`flex items-center gap-3 px-4 py-3 ${selected.has(e.id) ? 'bg-primary-soft' : ''}`}>
+                {canPay && (
+                  <input type="checkbox" className="size-5 shrink-0 accent-primary" aria-label={`Chọn ${e.orderCode}`} disabled={e.status !== 'pending'}
+                    checked={selected.has(e.id)} onChange={() => toggle(e.id)} />
+                )}
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span>
+                    <Link href={`/admin/don-hang/${e.orderId}`} className="font-semibold text-primary underline-offset-4 hover:underline">{e.orderCode}</Link>
+                    <span className="text-stone-700"> {nameOf.get(e.partnerId)}</span>
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2 text-sm text-stone-600">
+                    <span>{e.kind === 'earn' ? 'Ghi nhận' : 'Hoàn (trả hàng)'} {formatDate(e.createdAt)}</span>
+                    {e.status === 'paid'
+                      ? <Badge tone="green">Đã chi{e.paidAt ? ` ${formatDate(e.paidAt)}` : ''}</Badge>
+                      : <Badge tone="yellow">Chờ chi</Badge>}
+                  </span>
                 </span>
-                <span className="text-sm text-gray-600">
-                  {e.kind === 'earn' ? 'Ghi nhận' : 'Hoàn (trả hàng)'} {formatDate(e.createdAt)} ·{' '}
-                  {e.status === 'paid' ? `Đã chi${e.paidAt ? ` ${formatDate(e.paidAt)}` : ''}` : 'Chờ chi'}
-                </span>
-              </span>
-              <Money value={e.amount} className={`font-semibold ${e.amount < 0 ? 'text-red-700' : ''}`} />
-            </li>
-          ))}
-        </ul>
+                <Money value={e.amount} className={`shrink-0 font-semibold tabular-nums ${e.amount < 0 ? 'text-red-700' : ''}`} />
+              </li>
+            ))}
+          </ul>
+        </Card>
       </section>
     </div>
   )

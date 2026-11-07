@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react'
 import { deleteCategory, saveCategory } from '@/lib/admin/products-actions'
 
 type Cat = { id: string; name: string; sortOrder: number; imageUrl: string | null; productCount: number }
-const input = 'h-11 rounded-lg border border-gray-300 px-3 text-base'
+const input = 'h-11 rounded-xl border border-stone-300 bg-white px-3 text-base'
 
 function Row({ cat, readOnly }: { cat: Cat; readOnly: boolean }) {
   const router = useRouter()
@@ -13,14 +13,14 @@ function Row({ cat, readOnly }: { cat: Cat; readOnly: boolean }) {
   const [msg, setMsg] = useState('')
   if (readOnly) {
     return (
-      <li className="flex items-center justify-between gap-3 p-3">
+      <li className="flex items-center justify-between gap-3 px-4 py-3 even:bg-stone-50/70">
         <span>{cat.name}</span>
-        <span className="text-gray-600">{cat.productCount} sản phẩm</span>
+        <span className="text-stone-600">{cat.productCount} sản phẩm</span>
       </li>
     )
   }
   return (
-    <li className="flex flex-col gap-2 p-3">
+    <li className="flex flex-col gap-2 px-4 py-3 even:bg-stone-50/70">
       <form
         className="flex flex-wrap items-center gap-2"
         action={(form) =>
@@ -35,7 +35,7 @@ function Row({ cat, readOnly }: { cat: Cat; readOnly: boolean }) {
         <input name="name" defaultValue={cat.name} required aria-label="Tên nhóm" className={`${input} min-w-0 flex-1`} />
         <input name="sortOrder" defaultValue={cat.sortOrder} inputMode="numeric" aria-label="Thứ tự" className={`${input} w-20`} />
         <input name="imageUrl" type="url" defaultValue={cat.imageUrl ?? ''} placeholder="https://..." aria-label="Link ảnh nhóm" className={`${input} min-w-0 basis-full sm:basis-auto sm:flex-1`} />
-        <button type="submit" disabled={pending} className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white disabled:opacity-60">Lưu</button>
+        <button type="submit" disabled={pending} className="h-11 rounded-xl bg-primary px-4 font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-60">Lưu</button>
         <button
           type="button"
           disabled={pending}
@@ -47,12 +47,12 @@ function Row({ cat, readOnly }: { cat: Cat; readOnly: boolean }) {
               router.refresh()
             })
           }}
-          className="h-11 rounded-lg border border-red-300 px-4 font-semibold text-red-700 disabled:opacity-60"
+          className="h-11 rounded-xl border border-red-300 bg-white px-4 font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
         >
           Xóa
         </button>
       </form>
-      <span className="text-sm text-gray-600">{cat.productCount} sản phẩm{msg && ` · ${msg}`}</span>
+      <span className="text-sm text-stone-600">{cat.productCount} sản phẩm{msg && ` · ${msg}`}</span>
     </li>
   )
 }
@@ -64,8 +64,8 @@ export function CategoryManager({ categories, readOnly }: { categories: Cat[]; r
   return (
     <div className="flex flex-col gap-4">
       {categories.length === 0
-        ? <p className="py-6 text-center text-gray-600">Chưa có nhóm nào.</p>
-        : <ul className="divide-y rounded-xl border border-gray-200">{categories.map((c) => <Row key={c.id} cat={c} readOnly={readOnly} />)}</ul>}
+        ? <p className="rounded-2xl border border-stone-200 bg-white py-8 text-center text-stone-600">Chưa có nhóm nào.</p>
+        : <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200 bg-white">{categories.map((c) => <Row key={c.id} cat={c} readOnly={readOnly} />)}</ul>}
       {!readOnly && (
         <form
           className="flex flex-wrap items-center gap-2"
@@ -80,7 +80,7 @@ export function CategoryManager({ categories, readOnly }: { categories: Cat[]; r
           <input name="name" required placeholder="Tên nhóm mới" aria-label="Tên nhóm mới" className={`${input} min-w-0 flex-1`} />
           <input name="sortOrder" defaultValue={0} inputMode="numeric" aria-label="Thứ tự" className={`${input} w-20`} />
           <input name="imageUrl" type="url" placeholder="Link ảnh nhóm (https://...)" aria-label="Link ảnh nhóm" className={`${input} min-w-0 basis-full sm:basis-auto sm:flex-1`} />
-          <button type="submit" disabled={pending} className="h-11 rounded-lg bg-green-700 px-4 font-semibold text-white disabled:opacity-60">Thêm nhóm</button>
+          <button type="submit" disabled={pending} className="h-11 rounded-xl bg-primary px-4 font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-60">Thêm nhóm</button>
           {error && <p role="alert" className="w-full text-red-700">{error}</p>}
         </form>
       )}

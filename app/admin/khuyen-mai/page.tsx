@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { AdminMain, Loading, PageHeader } from '@/components/admin/AdminPage'
 import { PromotionManager, type PromoRow } from '@/components/admin/PromotionManager'
 import { requireStaff } from '@/lib/auth/guards'
 import { vnDateInput } from '@/lib/format'
@@ -47,11 +48,11 @@ async function Promotions() {
 
 export default function PromotionsPage() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4">
-      <h1 className="text-2xl font-bold">Khuyến mãi</h1>
-      <Suspense fallback={<p className="py-8 text-center text-gray-600">Đang tải...</p>}>
+    <AdminMain width="narrow">
+      <PageHeader title="Khuyến mãi" subtitle="Giảm giá theo nhóm hoặc theo sản phẩm, có ngày bắt đầu và kết thúc." />
+      <Suspense fallback={<Loading />}>
         <Promotions />
       </Suspense>
-    </main>
+    </AdminMain>
   )
 }

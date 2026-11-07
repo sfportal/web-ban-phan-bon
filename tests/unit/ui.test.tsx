@@ -24,8 +24,7 @@ describe('Button', () => {
   })
   test('href + disabled → span không bấm, không focus được', () => {
     render(<Button href="/dat-hang" disabled>Đặt hàng</Button>)
-    expect(screen.queryByRole('link')).toBeNull()
-    const el = screen.getByText('Đặt hàng')
+    const el = screen.getByRole('link', { name: 'Đặt hàng' })
     expect(el.tagName).toBe('SPAN')
     expect(el.getAttribute('aria-disabled')).toBe('true')
     expect(el.hasAttribute('href')).toBe(false)

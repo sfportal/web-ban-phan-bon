@@ -28,7 +28,7 @@ export function buttonClass({ variant = 'primary', size = 'md', className = '' }
 type Common = { variant?: ButtonVariant; size?: ButtonSize; className?: string; children?: ReactNode; asChild?: never }
 type LinkButtonProps = Common & {
   href: string
-  /** Liên kết bị khóa: hiện dạng nút mờ (span, không href, không nhận focus). */
+  /** Liên kết bị khóa: span role="link" aria-disabled, không href, không nhận focus. */
   disabled?: boolean
 } & Omit<ComponentProps<typeof Link>, 'href' | 'className' | 'children'>
 type NativeButtonProps = Common & { href?: undefined } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'children'>
@@ -39,7 +39,7 @@ export function Button(props: LinkButtonProps | NativeButtonProps) {
     const { variant, size, className, children, href, disabled, ...rest } = props
     if (disabled) {
       return (
-        <span aria-disabled="true" className={buttonClass({ variant, size, className })}>
+        <span role="link" aria-disabled="true" className={buttonClass({ variant, size, className })}>
           {children}
         </span>
       )

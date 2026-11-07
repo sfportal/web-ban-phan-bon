@@ -79,3 +79,26 @@ export function oneLine(text: string, max: number): string {
   const t = text.trim().replace(/\s+/g, ' ')
   return t.length <= max ? t : `${shortLabel(t, max - 1)[0]}…`
 }
+
+// Độ rộng ký tự (em) của Be Vietnam Pro đậm, làm tròn lên từ bảng hmtx của bản 700
+// (W 1,057; M 0,89; m 0,896; w 0,88; chữ hoa ≤ 0,83; số ≤ 0,72; chữ thường trung bình 0,58).
+const WIDE = new Set(['W'])
+const EXTRA = new Set(['M', 'm', 'w', '@', '%', '#'])
+const NARROW = new Set(['i', 'l', 'j', 'I', '.', ',', ':', ';', '!', "'", '|'])
+
+/** Ước tính bề rộng chuỗi theo em, cố ý hơi dư để chữ gần giới hạn luôn được ép vừa. */
+export function textWidthEm(text: string): number {
+  let em = 0
+  // Bỏ dấu thanh/dấu mũ (combining mark rộng 0), giữ chữ gốc.
+  for (const ch of text.normalize('NFD').replace(/[̀-ͯ]/g, '')) {
+    if (WIDE.has(ch)) em += 1.07
+    else if (EXTRA.has(ch)) em += 0.9
+    else if (NARROW.has(ch)) em += 0.32
+    else if (ch === ' ') em += 0.25
+    else if (/[A-ZĐ]/.test(ch)) em += 0.84
+    else if (/[0-9]/.test(ch)) em += 0.72
+    else if (/[-()/+]/.test(ch)) em += 0.5
+    else em += 0.62
+  }
+  return em
+}

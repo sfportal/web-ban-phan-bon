@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, test } from 'vitest'
 import { PACKAGE_GEOMETRY, PackageArt } from '@/components/PackageArt'
 import { ProductImage } from '@/components/ProductImage'
-import { categoryColors, npkRatio, oneLine, packageShape, shortLabel } from '@/lib/media/package-art'
+import { categoryColors, npkRatio, oneLine, packageShape, shortLabel, textWidthEm } from '@/lib/media/package-art'
 
 describe('packageShape', () => {
   test.each([['bao 50kg', 'bag'], ['Bao 25 kg', 'bag'], ['chai 1L', 'bottle'], ['chai 500ml', 'bottle'], ['lọ 100ml', 'bottle'],
@@ -101,6 +101,14 @@ describe('PackageArt', () => {
   })
 })
 
+test('textWidthEm không thấp hơn độ rộng thật của Be Vietnam Pro 700', () => {
+  // Số đo từ bảng hmtx của be-vietnam-pro-latin-700 (đơn vị em).
+  const real: [string, number][] = [['W', 1.057], ['M', 0.89], ['m', 0.896], ['w', 0.88], ['O', 0.83], ['A', 0.77], ['0', 0.7], ['n', 0.6]]
+  for (const [ch, em] of real) expect(textWidthEm(ch), ch).toBeGreaterThanOrEqual(em)
+  expect(textWidthEm('Ấ')).toBe(textWidthEm('A'))
+  expect(textWidthEm('WWWW')).toBeGreaterThan(textWidthEm('iiii') * 3)
+})
+
 describe('PackageArt: chữ dài không tràn nhãn', () => {
   const longName = 'Phân bón hữu cơ vi sinh cao cấp chuyên dùng cho cây ăn trái WWWWWWWWWWWWWWWWWW'
   const longBrand = 'Công ty Cổ phần Phân bón Miền Nam WWWWWWWWWWWW'
@@ -114,7 +122,7 @@ describe('PackageArt: chữ dài không tràn nhãn', () => {
     for (const [, attrs, content] of texts) {
       expect(content.length, content).toBeLessThanOrEqual(maxChars + 3)
       const fontSize = Number(attrs.match(/font-size="([\d.]+)"/)![1])
-      const estimated = content.length * fontSize * 0.6
+      const estimated = textWidthEm(content) * fontSize
       const textLength = attrs.match(/textLength="([\d.]+)"/)?.[1]
       if (estimated > label.w - 8) {
         expect(textLength, `"${content}" cần textLength`).toBeDefined()
@@ -124,6 +132,19 @@ describe('PackageArt: chữ dài không tràn nhãn', () => {
         expect(textLength, `"${content}" không cần ép`).toBeUndefined()
       }
     }
+  })
+
+  test.each(Object.keys(PACKAGE_GEOMETRY))('%s: dòng chữ hoa/W vừa số ký tự vẫn được ép', (shape) => {
+    const { label, maxChars } = PACKAGE_GEOMETRY[shape as keyof typeof PACKAGE_GEOMETRY]
+    const name = 'W'.repeat(maxChars) // đúng giới hạn ký tự nhưng rộng gần gấp đôi chữ thường
+    const unit = { bag: 'bao', bottle: 'chai', pouch: 'gói', roll: 'cuộn', box: 'cái' }[shape]!
+    const html = renderToStaticMarkup(<PackageArt name={name} brand="MWMWMWMWMWMW" unit={unit} categorySlug="npk" />)
+    const nameLine = [...html.matchAll(/<text([^>]*)>([^<]*)<\/text>/g)].find(([, , c]) => c === name)
+    expect(nameLine).toBeDefined()
+    expect(nameLine![1]).toContain(`textLength="${label.w - 8}"`)
+    expect(nameLine![1]).toContain('lengthAdjust="spacingAndGlyphs"')
+    const brandLine = [...html.matchAll(/<text([^>]*)>([^<]*)<\/text>/g)].find(([, , c]) => c.startsWith('MWMW'))
+    expect(brandLine![1]).toContain('textLength=')
   })
 })
 

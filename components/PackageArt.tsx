@@ -1,4 +1,4 @@
-import { categoryColors, npkRatio, oneLine, packageShape, shortLabel, type PackageShape } from '@/lib/media/package-art'
+import { categoryColors, npkRatio, oneLine, packageShape, shortLabel, textWidthEm, type PackageShape } from '@/lib/media/package-art'
 
 // Ảnh minh họa bao bì tự vẽ cho sản phẩm chưa có ảnh: hình theo quy cách (bao, chai, gói, cuộn, hộp),
 // màu theo nhóm, nhãn trắng ghi thương hiệu bằng chữ (không dùng logo hãng), tên, N-P-K và quy cách.
@@ -18,10 +18,9 @@ export const PACKAGE_GEOMETRY: Record<PackageShape, Geometry> = {
   box: { label: { x: 50, y: 86, w: 90, h: 98 }, unitY: 204, maxChars: 14 },
 }
 
-// Lưới an toàn: chữ ước tính rộng hơn nhãn (ký tự rộng như W, M) thì ép vừa bề rộng.
-const CHAR_EM = 0.6
+// Lưới an toàn: chữ ước tính (theo độ rộng từng ký tự, hơi dư) rộng hơn nhãn thì ép vừa bề rộng.
 function fit(text: string, fontSize: number, maxWidth: number) {
-  return text.length * fontSize * CHAR_EM > maxWidth
+  return textWidthEm(text) * fontSize > maxWidth
     ? { textLength: maxWidth, lengthAdjust: 'spacingAndGlyphs' as const }
     : {}
 }
@@ -119,7 +118,7 @@ export function PackageArt({
   const npk = npkRatio(name)
   const cx = label.x + label.w / 2
   const textWidth = label.w - 8
-  const npkSize = npk ? Math.min(22, (label.w - 12) / (npk.length * 0.6)) : 0
+  const npkSize = npk ? Math.min(22, (label.w - 12) / textWidthEm(npk)) : 0
   const unitText = unit ? oneLine(unit, maxChars + 2) : null
 
   return (

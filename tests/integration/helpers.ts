@@ -3,7 +3,7 @@ import { randomInt, randomUUID } from 'node:crypto'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { phoneToEmail } from '@/lib/phone'
 import { adminClient } from '@/lib/supabase/admin'
-import type { Database } from '@/lib/supabase/database.types'
+import type { Database, Json } from '@/lib/supabase/database.types'
 
 export { adminClient }
 
@@ -128,4 +128,89 @@ export async function resetData(): Promise<void> {
     const { error } = await admin.auth.admin.deleteUser(id)
     if (error) throw error
   }
+}
+
+// RPC đơn hàng / nông dân (0003_functions.sql) ------------------------------------
+
+type OrderStatus = Database['public']['Enums']['order_status']
+type ActorKind = 'partner' | 'staff'
+
+/** Một dòng hàng hợp lệ (sản phẩm đầu tiên theo SKU, qty 1) cho p_lines. */
+export async function sampleLine(overrides: Record<string, unknown> = {}) {
+  const { data: product } = await adminClient()
+    .from('products').select('id, list_price').order('sku').limit(1).single().throwOnError()
+  return {
+    product_id: product.id, qty: 1, list_price_snap: product.list_price,
+    sale_price_snap: product.list_price, line_total: product.list_price, ...overrides,
+  }
+}
+
+/** Gọi create_order; mặc định là đơn lẻ 1 dòng. `order` ghi đè các khóa của p_order. */
+export async function createOrderRpc(
+  order: Record<string, unknown> = {},
+  lines?: Record<string, unknown>[],
+): Promise<{ id: string; code: string }> {
+  const ls = lines ?? [await sampleLine()]
+  const subtotal = ls.reduce((s, l) => s + Number(l.line_total), 0)
+  const { data, error } = await adminClient().rpc('create_order', {
+    p_order: {
+      source: 'retail', retail_name: 'Khách lẻ', retail_phone: '0911111111',
+      retail_address: 'Krông Pắc', payment_method: 'cod', subtotal, commission_expected: 0, ...order,
+    },
+    p_lines: ls as Json,
+  })
+  if (error) throw error
+  return data[0]
+}
+
+export async function changeStatus(
+  id: string, to: OrderStatus, kind: ActorKind = 'staff', actor: string | null = null, note: string | null = null,
+) {
+  return adminClient().rpc('change_order_status', {
+    p_order_id: id, p_to: to, p_actor: actor, p_actor_kind: kind, p_note: note,
+  })
+}
+
+export async function toStatus(id: string, to: OrderStatus): Promise<void> {
+  const { error } = await changeStatus(id, to)
+  if (error) throw error
+}
+
+const PATH: Record<OrderStatus, OrderStatus[]> = {
+  new: [],
+  confirmed: ['confirmed'],
+  shipping: ['confirmed', 'shipping'],
+  delivered: ['confirmed', 'shipping', 'delivered'],
+  paid: ['confirmed', 'shipping', 'delivered', 'paid'],
+  cancelled: ['cancelled'],
+  returned: ['confirmed', 'shipping', 'delivered', 'returned'],
+}
+
+/** Tạo đơn qua create_order rồi đi theo luồng hợp lệ (staff) tới trạng thái `status`. */
+export async function orderInStatus(status: OrderStatus, order: Record<string, unknown> = {}): Promise<string> {
+  const { id } = await createOrderRpc(order)
+  for (const s of PATH[status]) await toStatus(id, s)
+  return id
+}
+
+export async function commissions(orderId: string) {
+  const { data } = await adminClient()
+    .from('commission_entries').select('kind, amount, status').eq('order_id', orderId)
+    .order('created_at').throwOnError()
+  return data
+}
+
+export async function countOrders(): Promise<number> {
+  const { count } = await adminClient().from('orders').select('*', { count: 'exact', head: true }).throwOnError()
+  return count ?? 0
+}
+
+export async function claim(
+  p: { partnerId: string }, phone: string, name = `Nông dân ${phone}`, address: string | null = null,
+): Promise<{ status: 'ok'; farmer_id: string } | { status: 'owned_by_other' }> {
+  const { data, error } = await adminClient().rpc('claim_farmer', {
+    p_partner_id: p.partnerId, p_phone: phone, p_name: name, p_address: address,
+  })
+  if (error) throw error
+  return data as { status: 'ok'; farmer_id: string } | { status: 'owned_by_other' }
 }

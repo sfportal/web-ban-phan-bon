@@ -529,6 +529,48 @@ export type Database = {
     }
     Views: { [_ in never]: never }
     Functions: {
+      // RPC ghi (0003_functions.sql) — chỉ service_role được execute.
+      create_order: {
+        // p_order: source, partner_id, client_key, client_ip, delivery_address, payment_method,
+        // retail_name, retail_phone, retail_address, note, subtotal, partner_payable,
+        // commission_expected, actor (auth user id, tùy chọn). p_lines: mảng dòng theo cột order_lines.
+        Args: { p_order: Json; p_lines: Json }
+        Returns: { id: string; code: string }[]
+      }
+      change_order_status: {
+        Args: {
+          p_order_id: string
+          p_to: Database['public']['Enums']['order_status']
+          p_actor: string | null
+          p_actor_kind: 'partner' | 'staff'
+          p_note: string | null
+        }
+        Returns: undefined
+      }
+      replace_order_lines: {
+        // p_totals: subtotal, partner_payable, commission_expected
+        Args: {
+          p_order_id: string
+          p_lines: Json
+          p_totals: Json
+          p_actor: string | null
+          p_actor_kind: 'partner' | 'staff'
+        }
+        Returns: undefined
+      }
+      claim_farmer: {
+        Args: { p_partner_id: string; p_phone: string; p_name: string; p_address: string | null }
+        // { status: 'ok', farmer_id } | { status: 'owned_by_other' }
+        Returns: Json
+      }
+      transfer_farmer: {
+        Args: { p_farmer_id: string; p_to_partner: string | null; p_actor: string | null }
+        Returns: undefined
+      }
+      retail_recent_count: {
+        Args: { p_phone: string; p_ip: string }
+        Returns: number
+      }
       current_partner_id: { Args: never; Returns: string }
       current_tier_id: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }

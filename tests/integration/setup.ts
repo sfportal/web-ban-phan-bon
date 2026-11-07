@@ -10,7 +10,21 @@ vi.mock('next/headers', async () => {
   }
 })
 
-vi.mock('@/lib/supabase/server', async (importOriginal) => {
+// after() của Next throw ngoài phạm vi request: thay bằng bản chạy callback ở nền
+// (lỗi chỉ log), test có thể kiểm tra số lần gọi qua vi.mocked(after).
+vi.mock('next/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/server')>()
+  return {
+    ...actual,
+    after: vi.fn((task: Promise<unknown> | (() => unknown)) => {
+      void Promise.resolve()
+        .then(() => (typeof task === 'function' ? task() : task))
+        .catch((e) => console.error('after() task failed', e))
+    }),
+  }
+})
+
+vi.mock('@/lib/supabase/server',async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/supabase/server')>()
   const { currentContext } = await import('./request-context')
   return {

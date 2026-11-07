@@ -61,22 +61,28 @@ export async function getCatalog(db: Db): Promise<{
   const [products, categories, promos] = await Promise.all([
     db.from('products').select(PRODUCT_COLUMNS).eq('is_active', true).throwOnError(),
     db.from('categories').select('id, name').order('sort_order').order('name').throwOnError(),
-    db.from('promotions').select('*').eq('is_active', true).throwOnError(),
+    getActivePromos(db),
   ])
   return {
     products: sortProducts(products.data as unknown as ProductRow[]).map(toProduct),
     categories: categories.data,
-    promos: promos.data.map((p) => ({
-      id: p.id,
-      scope: p.scope,
-      targetId: p.target_id,
-      type: p.type,
-      value: Number(p.value),
-      startsAt: new Date(p.starts_at),
-      endsAt: new Date(p.ends_at),
-      isActive: p.is_active,
-    })),
+    promos,
   }
+}
+
+/** Khuyến mãi đang bật (còn hiệu lực hay không do `salePrice` xét theo `now`). */
+export async function getActivePromos(db: Db): Promise<PromotionInput[]> {
+  const { data } = await db.from('promotions').select('*').eq('is_active', true).throwOnError()
+  return data.map((p) => ({
+    id: p.id,
+    scope: p.scope,
+    targetId: p.target_id,
+    type: p.type,
+    value: Number(p.value),
+    startsAt: new Date(p.starts_at),
+    endsAt: new Date(p.ends_at),
+    isActive: p.is_active,
+  }))
 }
 
 /**

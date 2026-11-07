@@ -4,6 +4,7 @@ import { CartView } from '@/components/CartView'
 import { getCatalog } from '@/lib/catalog/queries'
 import { SITE_NAME } from '@/lib/site'
 import { createServerClient } from '@/lib/supabase/server'
+import { RetailForm } from './RetailForm'
 
 export const metadata = { title: `Giỏ hàng — ${SITE_NAME}` }
 
@@ -12,7 +13,7 @@ async function Cart() {
   return (
     <>
       <CartView products={products} promos={promos} />
-      {/* Task 8: form đặt hàng bán lẻ (tên, SĐT, địa chỉ, ghi chú) đặt tại đây, dưới giỏ. */}
+      <RetailForm products={products} promos={promos} />
     </>
   )
 }

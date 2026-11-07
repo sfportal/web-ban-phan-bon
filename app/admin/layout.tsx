@@ -1,3 +1,4 @@
+import { AdminNav } from '@/components/admin/AdminNav'
 import { logout } from '@/lib/auth/actions'
 import { requireStaff } from '@/lib/auth/guards'
 import { SITE_NAME } from '@/lib/site'
@@ -18,6 +19,7 @@ export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
           <button type="submit" className="h-11 px-3 font-semibold text-green-700">Đăng xuất</button>
         </form>
       </header>
+      <AdminNav />
       {children}
     </div>
   )

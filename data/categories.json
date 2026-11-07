@@ -1,0 +1,8 @@
+[
+  { "slug": "npk", "name": "Phân NPK", "sort_order": 1, "image_key": "cat-npk", "rates": { "ctv": 3, "dai_ly": 5 } },
+  { "slug": "phan-don", "name": "Phân đơn (Urê, DAP, Kali)", "sort_order": 2, "image_key": "cat-phan-don", "rates": { "ctv": 2, "dai_ly": 4 } },
+  { "slug": "huu-co", "name": "Phân hữu cơ", "sort_order": 3, "image_key": "cat-huu-co", "rates": { "ctv": 5, "dai_ly": 8 } },
+  { "slug": "phan-bon-la", "name": "Phân bón lá & vi lượng", "sort_order": 4, "image_key": "cat-phan-bon-la", "rates": { "ctv": 8, "dai_ly": 12 } },
+  { "slug": "thuoc-bvtv", "name": "Thuốc BVTV", "sort_order": 5, "image_key": "cat-thuoc-bvtv", "rates": { "ctv": 6, "dai_ly": 10 } },
+  { "slug": "vat-tu", "name": "Vật tư nông nghiệp", "sort_order": 6, "image_key": "cat-vat-tu", "rates": { "ctv": 4, "dai_ly": 6 } }
+]

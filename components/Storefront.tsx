@@ -5,7 +5,8 @@ import type { CatalogProduct } from '@/lib/catalog/queries'
 import type { PromotionInput } from '@/lib/pricing'
 import { ProductCard } from './ProductCard'
 
-function normalize(s: string): string {
+/** Chuỗi so khớp tìm kiếm: bỏ dấu tiếng Việt, chữ thường. */
+export function normalize(s: string): string {
   return s.normalize('NFD').replace(/\p{M}/gu, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
 }
 

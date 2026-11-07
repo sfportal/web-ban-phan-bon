@@ -30,7 +30,7 @@ export function ProductTabs({ product }: { product: TabsProduct }) {
   const baseId = useId()
   const benefits = lines(product.benefits)
   const usage = lines(product.usage)
-  const crops = product.crops.map((c) => c.trim()).filter(Boolean)
+  const crops = [...new Set(product.crops.map((c) => c.trim()).filter(Boolean))]
   const composition = product.composition?.trim() ?? ''
   const description = product.description?.trim() ?? ''
 

@@ -53,6 +53,13 @@ describe('RemoteImage', () => {
     expect(fb.getAttribute('aria-label')).toBe('Ruộng lúa')
     expect(container.firstElementChild!.className).toContain('aspect-video')
   })
+  test('alt rỗng (ảnh trang trí) → khung dự phòng ẩn khỏi trình đọc màn hình', () => {
+    const { container } = render(<RemoteImage src="https://images.unsplash.com/photo-1" alt="" sizes="100vw" />)
+    fireEvent.error(container.querySelector('img')!)
+    const fb = screen.getByTestId('image-fallback')
+    expect(fb.getAttribute('aria-hidden')).toBe('true')
+    expect(fb.hasAttribute('role')).toBe(false)
+  })
 })
 
 describe('Field', () => {

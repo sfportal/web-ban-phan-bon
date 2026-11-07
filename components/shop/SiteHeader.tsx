@@ -50,9 +50,11 @@ function HeaderSearch() {
   const [value, setValue] = useState(urlQ)
   const [seenQ, setSeenQ] = useState(urlQ)
   // URL đổi từ nơi khác (nút "Xem tất cả sản phẩm") → đồng bộ ô tìm.
+  // Chỉ ghi đè khi URL thật sự khác chữ đang gõ: URL lưu bản đã trim, cập nhật trễ không được
+  // xóa dấu cách cuối khi người dùng đang gõ dở ("phân " → "phân").
   if (urlQ !== seenQ) {
     setSeenQ(urlQ)
-    setValue(urlQ)
+    if (urlQ !== value.trim()) setValue(urlQ)
   }
   const onHome = pathname === '/'
 
@@ -106,10 +108,10 @@ export function SiteHeader({ storeName }: { storeName: string }) {
     <header className="sticky top-0 z-30 bg-primary text-white shadow-[0_1px_0_rgba(0,0,0,0.08)]">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 md:flex-nowrap md:gap-5 md:py-3">
         <Link href="/" className="flex h-11 min-w-0 flex-1 items-center gap-2.5 md:flex-none">
-          <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/12 ring-1 ring-white/25">
+          <span aria-hidden className="hidden size-9 shrink-0 items-center sm:flex justify-center rounded-full bg-white/12 ring-1 ring-white/25">
             <Sprout className="size-5 text-accent-soft" />
           </span>
-          <span className="truncate text-lg font-bold tracking-tight">{storeName}</span>
+          <span className="line-clamp-2 text-lg font-bold leading-tight tracking-tight">{storeName}</span>
         </Link>
         <div className="order-last w-full md:order-none md:w-auto md:max-w-xl md:flex-1">
           <Suspense fallback={<SearchField value="" />}>

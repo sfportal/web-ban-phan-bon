@@ -50,6 +50,11 @@ describe('ProductTabs', () => {
     expect(again.container.innerHTML).toBe('')
   })
 
+  test('cây trùng (kể cả khác khoảng trắng) chỉ hiện một lần', () => {
+    render(<ProductTabs product={{ ...EMPTY, crops: ['Lúa', ' Lúa ', 'Cà phê'] }} />)
+    expect(screen.getByRole('tabpanel').textContent).toBe('LúaCà phê')
+  })
+
   test('không lộ chuỗi undefined/null', () => {
     const { container } = render(<ProductTabs product={{ ...EMPTY, composition: 'Đạm 46%' }} />)
     expect(container.innerHTML).not.toMatch(/undefined|null/)

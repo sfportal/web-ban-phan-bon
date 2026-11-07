@@ -8,10 +8,9 @@ import { allowsRemoteImage, imageRemotePatterns } from '@/lib/media/remote-patte
 const PATTERNS = imageRemotePatterns(process.env.NEXT_PUBLIC_SUPABASE_URL)
 
 /** Ảnh nhóm: ảnh admin đặt, không có thì ảnh minh họa theo slug (cat-<slug>). */
-function tileImage(c: CatalogCategory): { url: string; alt: string } | null {
-  if (c.imageUrl) return { url: c.imageUrl, alt: c.name }
-  const meta = c.slug ? IMAGES[`cat-${c.slug}` as ImageKey] : undefined
-  return meta ? { url: meta.url, alt: meta.alt } : null
+function tileImage(c: CatalogCategory): string | null {
+  if (c.imageUrl) return c.imageUrl
+  return (c.slug && IMAGES[`cat-${c.slug}` as ImageKey]?.url) || null
 }
 
 const FALLBACK = 'bg-gradient-to-br from-primary-soft via-[#eef7e6] to-accent-soft'
@@ -31,10 +30,10 @@ export function CategoryTiles({ categories, counts }: { categories: CatalogCateg
               <Link href={`/?nhom=${encodeURIComponent(categoryKey(c))}#san-pham`} className="group flex flex-col gap-2">
                 {img ? (
                   <RemoteImage
-                    src={img.url}
-                    alt={img.alt}
+                    src={img}
+                    alt="" // tên nhóm đã là chữ của liên kết
                     sizes="(min-width: 768px) 16vw, 40vw"
-                    unoptimized={!allowsRemoteImage(img.url, PATTERNS)}
+                    unoptimized={!allowsRemoteImage(img, PATTERNS)}
                     fallbackTone={FALLBACK}
                     className="aspect-square w-full rounded-2xl ring-1 ring-stone-900/5 transition-transform group-hover:-translate-y-0.5"
                   />

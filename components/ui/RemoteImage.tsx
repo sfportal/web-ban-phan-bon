@@ -28,8 +28,7 @@ export function RemoteImage({ src, alt, fallbackTone, className = '', sizes, pri
       {failed ? (
         <div
           data-testid="image-fallback"
-          role="img"
-          aria-label={alt}
+          {...(alt ? { role: 'img', 'aria-label': alt } : { 'aria-hidden': true })}
           className={`absolute inset-0 flex items-center justify-center ${fallbackTone ?? 'bg-gradient-to-br from-primary-soft to-accent-soft'}`}
         >
           <Sprout aria-hidden className="size-10 text-primary/30" />

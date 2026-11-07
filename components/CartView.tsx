@@ -43,7 +43,7 @@ export function CartView({ products, prices }: { products: CatalogProduct[]; pri
       <ul className="flex flex-col gap-3">
         {rows.map(({ productId, qty, product, unitPrice, orderable }) => (
           <li key={productId} className="flex gap-3 rounded-xl border border-gray-200 p-3">
-            {product && <ProductImage url={product.imageUrl} name={product.name} className="h-20 w-20 shrink-0 rounded-lg" />}
+            {product && <ProductImage url={product.imageUrl} name={product.name} unit={product.unit} brand={product.brand} categorySlug={product.categorySlug} className="h-20 w-20 shrink-0 rounded-lg" />}
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               {product ? (
                 <>

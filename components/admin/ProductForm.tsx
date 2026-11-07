@@ -93,7 +93,7 @@ export function ProductForm({ initial, categories }: { initial: ProductFormValue
 
       <fieldset className="flex min-w-0 flex-col gap-3 rounded-lg border border-gray-200 p-3">
         <legend className="px-1 font-semibold">Ảnh</legend>
-        <ProductImage url={initial.imageUrl} name={initial.name || 'sản phẩm'} className="h-32 w-32 rounded-lg" />
+        <ProductImage url={initial.imageUrl} name={initial.name || 'sản phẩm'} unit={initial.unit} brand={initial.brand} className="h-32 w-32 rounded-lg" />
         <label className="flex flex-col gap-1"><span>Tải ảnh lên (JPG, PNG, WebP, tối đa 2MB)</span>
           <input type="file" name="image" accept="image/jpeg,image/png,image/webp" className="text-base" /></label>
         <label className="flex flex-col gap-1"><span>Hoặc dán link ảnh (xóa trống để bỏ ảnh)</span>

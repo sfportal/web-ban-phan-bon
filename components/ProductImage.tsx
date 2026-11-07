@@ -1,15 +1,23 @@
-// Ảnh sản phẩm; chưa có ảnh thì hiện khung xám trung tính.
-export function ProductImage({ url, name, className = '' }: { url: string | null; name: string; className?: string }) {
+import { PackageArt } from './PackageArt'
+
+// Ảnh sản phẩm; chưa có ảnh thì vẽ ảnh minh họa bao bì theo quy cách và nhóm.
+export function ProductImage({
+  url,
+  name,
+  className = '',
+  unit,
+  brand,
+  categorySlug,
+}: {
+  url: string | null
+  name: string
+  className?: string
+  unit?: string | null
+  brand?: string | null
+  categorySlug?: string | null
+}) {
   if (!url) {
-    return (
-      <div
-        role="img"
-        aria-label={`Chưa có ảnh ${name}`}
-        className={`flex items-center justify-center bg-gray-100 text-sm text-gray-500 ${className}`}
-      >
-        Chưa có ảnh
-      </div>
-    )
+    return <PackageArt name={name} unit={unit} brand={brand} categorySlug={categorySlug} className={className} />
   }
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={url} alt={name} loading="lazy" className={`object-cover ${className}`} />

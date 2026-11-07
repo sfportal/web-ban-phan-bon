@@ -27,7 +27,7 @@ export default async function ProductPage({ params }: PageProps<'/san-pham/[id]'
       <Link href="/" className="flex h-11 items-center font-semibold text-green-700">
         ← Tất cả sản phẩm
       </Link>
-      <ProductImage url={product.imageUrl} name={product.name} className="aspect-square w-full rounded-xl sm:aspect-video" />
+      <ProductImage url={product.imageUrl} name={product.name} unit={product.unit} brand={product.brand} categorySlug={product.categorySlug} className="aspect-square w-full rounded-xl sm:aspect-video" />
       <p className="text-sm text-gray-600">{product.categoryName}</p>
       <h1 className="text-2xl font-bold">{product.name}</h1>
       <p className="text-gray-600">

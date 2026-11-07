@@ -50,7 +50,7 @@ export function ProductCard({ product, promos, now }: { product: CatalogProduct;
     <li className="flex flex-col overflow-hidden rounded-xl border border-gray-200">
       <Link href={`/san-pham/${product.id}`} className="block">
         <div className="relative">
-          <ProductImage url={product.imageUrl} name={product.name} className="aspect-square w-full" />
+          <ProductImage url={product.imageUrl} name={product.name} unit={product.unit} brand={product.brand} categorySlug={product.categorySlug} className="aspect-square w-full" />
           {!product.inStock && (
             <span className="absolute left-2 top-2 rounded bg-gray-800 px-2 py-1 text-sm font-semibold text-white">
               Hết hàng

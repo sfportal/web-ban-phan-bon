@@ -1,4 +1,4 @@
-import { BadgePercent, ChevronDown, ClipboardList, PiggyBank, SquarePlus, Tag, Wallet } from 'lucide-react'
+import { BadgePercent, ChevronDown, ClipboardList, PiggyBank, SquarePlus, Tag } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { Money } from '@/components/Money'
@@ -7,6 +7,7 @@ import { Card, EmptyState, SectionHeader, StatCard } from '@/components/ui'
 import { requirePartner, type PartnerSession } from '@/lib/auth/guards'
 import { getCatalog, type CatalogProduct } from '@/lib/catalog/queries'
 import { formatDate, formatVnd, vnDateStart, vnDayStart, vnPeriod } from '@/lib/format'
+import { getWallet } from '@/lib/payouts/wallet'
 import { salePrice, type PromotionInput } from '@/lib/pricing'
 import { SITE_NAME } from '@/lib/site'
 import { fetchAll } from '@/lib/supabase/fetch-all'
@@ -36,17 +37,19 @@ async function partnerStats(db: Db, session: PartnerSession, now: Date) {
     .eq('partner_id', session.partnerId).in('status', PROCESSING).throwOnError()
 
   if (session.kind === 'commission') {
-    const [entries, { count: open }, { count: farmers }] = await Promise.all([
+    const [entries, wallet, { count: open }, { count: farmers }] = await Promise.all([
       fetchAll((from, to) =>
         db.from('commission_entries').select('amount').eq('partner_id', session.partnerId).eq('period', period)
           .order('id').range(from, to).throwOnError(),
       ),
+      getWallet(session.partnerId),
       processing,
       db.from('farmers').select('id', { count: 'exact', head: true }).eq('owner_partner_id', session.partnerId).throwOnError(),
     ])
     return {
       kind: 'commission' as const,
       commission: entries.reduce((s, e) => s + Number(e.amount), 0),
+      available: wallet.available,
       open: open ?? 0,
       farmers: farmers ?? 0,
     }
@@ -72,16 +75,11 @@ async function partnerStats(db: Db, session: PartnerSession, now: Date) {
 
 function Stats({ stats, monthLabel }: { stats: Awaited<ReturnType<typeof partnerStats>>; monthLabel: string }) {
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+    <div className={`grid grid-cols-2 gap-3 ${stats.kind === 'commission' ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
       {stats.kind === 'commission' ? (
         <>
-          <StatCard
-            className="col-span-2 md:col-span-1"
-            label="Hoa hồng tháng này"
-            value={<Money value={stats.commission} />}
-            hint={monthLabel}
-            icon={<Wallet className="size-5" />}
-          />
+          <StatCard label="Số dư khả dụng" value={<Money value={stats.available} />} />
+          <StatCard label="Hoa hồng tháng này" value={<Money value={stats.commission} />} hint={monthLabel} />
           <StatCard label="Đơn đang xử lý" value={stats.open} />
           <StatCard label="Nông dân" value={stats.farmers} />
         </>

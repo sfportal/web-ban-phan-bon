@@ -1,17 +1,19 @@
-import { PiggyBank, Wallet } from 'lucide-react'
-import Link from 'next/link'
+import { PiggyBank, TriangleAlert, Wallet } from 'lucide-react'
 import { Suspense } from 'react'
 import { Money } from '@/components/Money'
-import { Badge, Card, EmptyState } from '@/components/ui'
+import { Card, EmptyState, SectionHeader, StatCard } from '@/components/ui'
 import { requirePartner, type PartnerSession } from '@/lib/auth/guards'
-import { vnPeriod } from '@/lib/format'
+import { formatDate, formatVnd, vnPeriod } from '@/lib/format'
+import { getMinPayout, getWallet, getWalletHistory } from '@/lib/payouts/wallet'
 import { SITE_NAME } from '@/lib/site'
+import { adminClient } from '@/lib/supabase/admin'
 import { fetchAll } from '@/lib/supabase/fetch-all'
 import { createServerClient } from '@/lib/supabase/server'
+import { BankInfoForm } from './BankInfoForm'
+import { PayoutList } from './PayoutList'
+import { WithdrawForm } from './WithdrawForm'
 
-export const metadata = { title: `Hoa hồng — ${SITE_NAME}` }
-
-const PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/
+export const metadata = { title: `Ví hoa hồng — ${SITE_NAME}` }
 
 /** "2026-11" → "Tháng 11/2026" */
 function periodLabel(p: string): string {
@@ -19,99 +21,72 @@ function periodLabel(p: string): string {
   return `Tháng ${m}/${y}`
 }
 
-/** CTV: bút toán hoa hồng theo kỳ YYYY-MM (kỳ = tháng giờ VN lúc đơn được thu đủ tiền / trả hàng). */
-async function Commission({ session, requested }: { session: PartnerSession; requested: string | null }) {
-  const db = createServerClient()
-  const periodRows = await fetchAll((from, to) =>
-    db.from('commission_entries').select('period').eq('partner_id', session.partnerId)
-      .order('id').range(from, to).throwOnError(),
-  )
-  const periods = [...new Set([vnPeriod(new Date()), ...periodRows.map((r) => r.period)])].sort().reverse()
-  const period = requested && periods.includes(requested) ? requested : periods[0]
-
-  const { data: entries } = await db
-    .from('commission_entries').select('id, kind, amount, status, created_at, orders(id, code)')
-    .eq('partner_id', session.partnerId).eq('period', period).order('created_at').throwOnError()
-  const sum = (pred: (e: (typeof entries)[number]) => boolean) =>
-    entries.filter(pred).reduce((s, e) => s + Number(e.amount), 0)
+/** CTV: ví hoa hồng — số dư, rút tiền, lịch sử hoa hồng theo đơn và các khoản chi. */
+async function WalletView({ session }: { session: PartnerSession }) {
+  const [wallet, history, min, { data: bank }] = await Promise.all([
+    getWallet(session.partnerId),
+    getWalletHistory(session.partnerId),
+    getMinPayout(),
+    adminClient().from('partners').select('bank_name, bank_account, bank_holder').eq('id', session.partnerId).single(),
+  ])
+  const hasBank = !!(bank?.bank_name && bank.bank_account && bank.bank_holder)
 
   return (
     <>
-      <nav aria-label="Chọn kỳ" className="-mx-4 overflow-x-auto px-4 pb-1">
-        <div className="flex min-w-max gap-2">
-          {periods.map((p) => (
-            <Link
-              key={p}
-              href={`/doi-tac/hoa-hong?ky=${p}`}
-              prefetch={false}
-              aria-current={p === period ? 'page' : undefined}
-              className={`flex h-11 items-center rounded-full border px-4 font-semibold transition-colors ${
-                p === period ? 'border-primary bg-primary text-white' : 'border-stone-300 bg-white text-stone-700 hover:border-primary/50'
-              }`}
-            >
-              {periodLabel(p)}
-            </Link>
-          ))}
-        </div>
-      </nav>
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard label="Đã kiếm được" value={<Money value={wallet.earned} />} />
+        <StatCard label="Đang chờ chi" value={<Money value={wallet.pendingOut} />} />
+        <StatCard label="Đã nhận" value={<Money value={wallet.paid} />} />
+        <StatCard label="Số dư khả dụng" value={<Money value={wallet.available} />} />
+      </div>
 
-      {entries.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<Wallet className="size-7" />}
-            title={`Chưa có hoa hồng trong ${periodLabel(period).toLowerCase()}.`}
-            description="Hoa hồng được ghi khi đơn của bạn đã thu đủ tiền."
-          />
-        </Card>
-      ) : (
-        <Card className="overflow-hidden">
-          <table className="w-full text-left">
-            <caption className="sr-only">Hoa hồng {periodLabel(period).toLowerCase()}</caption>
-            <thead className="border-b border-stone-200 bg-stone-50 text-sm text-stone-600">
-              <tr>
-                <th className="px-4 py-2.5 font-semibold">Mã đơn</th>
-                <th className="px-2 py-2.5 text-right font-semibold">Số tiền</th>
-                <th className="px-4 py-2.5 text-right font-semibold">Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {entries.map((e) => (
-                <tr key={e.id}>
-                  <td className="px-4 py-3">
-                    {e.orders ? (
-                      <Link href={`/doi-tac/don-hang/${e.orders.id}`} prefetch={false} className="font-semibold text-primary underline-offset-4 hover:underline">
-                        {e.orders.code}
-                      </Link>
-                    ) : '—'}
-                    {e.kind === 'reversal' && <span className="block text-sm font-semibold text-red-700">Trả hàng</span>}
-                  </td>
-                  <td className="px-2 py-3 text-right font-semibold tabular-nums text-ink"><Money value={Number(e.amount)} /></td>
-                  <td className="px-4 py-3 text-right">
-                    {e.status === 'paid' ? <Badge tone="green">Đã chi</Badge> : <Badge tone="yellow">Chờ chi</Badge>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="border-t-2 border-stone-200 bg-primary-soft/40">
-              <tr className="text-lg text-ink">
-                <th className="px-4 pb-1 pt-3">Tổng kỳ</th>
-                <td className="px-2 pb-1 pt-3 text-right font-bold tabular-nums"><Money value={sum(() => true)} /></td>
-                <td />
-              </tr>
-              <tr className="text-sm text-stone-700">
-                <td className="px-4 py-0.5">Đã chi</td>
-                <td className="px-2 py-0.5 text-right tabular-nums"><Money value={sum((e) => e.status === 'paid')} /></td>
-                <td />
-              </tr>
-              <tr className="text-sm text-stone-700">
-                <td className="px-4 pb-3 pt-0.5">Chờ chi</td>
-                <td className="px-2 pb-3 pt-0.5 text-right tabular-nums"><Money value={sum((e) => e.status !== 'paid')} /></td>
-                <td />
-              </tr>
-            </tfoot>
-          </table>
-        </Card>
+      {wallet.available < 0 && (
+        <p role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 font-semibold text-red-800">
+          <TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />
+          Số dư đang âm do đơn trả hàng. Khoản này sẽ được trừ vào hoa hồng các đơn sau.
+        </p>
       )}
+
+      <BankInfoForm
+        initial={hasBank ? { bankName: bank!.bank_name!, bankAccount: bank!.bank_account!, bankHolder: bank!.bank_holder! } : null}
+      />
+      {hasBank && <WithdrawForm available={wallet.available} min={min} />}
+
+      <section aria-labelledby="payouts" className="flex flex-col gap-3">
+        <SectionHeader title={<span id="payouts">Khoản chi</span>} />
+        <PayoutList payouts={history.payouts} />
+      </section>
+
+      <section aria-labelledby="entries" className="flex flex-col gap-3">
+        <SectionHeader title={<span id="entries">Lịch sử hoa hồng</span>} />
+        {history.entries.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={<Wallet className="size-7" />}
+              title="Chưa có hoa hồng."
+              description="Hoa hồng được ghi khi đơn của bạn đã thu đủ tiền."
+            />
+          </Card>
+        ) : (
+          <Card as="div" className="overflow-hidden">
+            <ul className="divide-y divide-stone-100">
+              {history.entries.map((e, i) => (
+                <li key={i} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-ink">{e.orderCode || '—'}</span>
+                    <span className="text-sm text-stone-600">
+                      {e.kind === 'reversal' ? 'Trả hàng · ' : ''}{formatDate(e.createdAt)}
+                    </span>
+                  </span>
+                  <span className={`shrink-0 font-bold tabular-nums ${e.amount < 0 ? 'text-red-700' : 'text-primary'}`}>
+                    {e.amount < 0 ? '' : '+'}{formatVnd(e.amount)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+      </section>
     </>
   )
 }
@@ -164,23 +139,21 @@ async function Savings({ session }: { session: PartnerSession }) {
   )
 }
 
-async function Content({ searchParams }: Pick<PageProps<'/doi-tac/hoa-hong'>, 'searchParams'>) {
+async function Content() {
   const session = await requirePartner()
-  const raw = (await searchParams).ky
-  const requested = typeof raw === 'string' && PERIOD.test(raw) ? raw : null
   return (
     <>
-      <h1 className="text-2xl font-bold tracking-tight text-ink">{session.kind === 'commission' ? 'Hoa hồng' : 'Tiết kiệm theo tháng'}</h1>
-      {session.kind === 'commission' ? <Commission session={session} requested={requested} /> : <Savings session={session} />}
+      <h1 className="text-2xl font-bold tracking-tight text-ink">{session.kind === 'commission' ? 'Ví hoa hồng' : 'Tiết kiệm theo tháng'}</h1>
+      {session.kind === 'commission' ? <WalletView session={session} /> : <Savings session={session} />}
     </>
   )
 }
 
-export default function CommissionPage({ searchParams }: PageProps<'/doi-tac/hoa-hong'>) {
+export default function CommissionPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pb-8 pt-5 text-base">
       <Suspense fallback={<p className="py-8 text-center text-stone-600">Đang tải...</p>}>
-        <Content searchParams={searchParams} />
+        <Content />
       </Suspense>
     </main>
   )

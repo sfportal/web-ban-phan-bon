@@ -9,7 +9,7 @@ type Item = { href: string; label: string; icon: LucideIcon }
 /**
  * Điều hướng khu đối tác. Điện thoại: thanh đáy cố định có icon (ẩn khi đang lên đơn vì luồng
  * lên đơn có thanh đáy riêng). Từ md: dải tab nằm cuối header xanh, tab đang mở nối liền nền kem.
- * Đại lý không có mục Nông dân; "Hoa hồng" → "Tiết kiệm".
+ * Đại lý không có mục Nông dân; "Ví" (CTV) / "Tiết kiệm" (đại lý).
  * prefetch tắt: số liệu đơn / hoa hồng luôn lấy mới khi bấm, không dùng bản tải trước.
  */
 export function PartnerNav({ kind }: { kind: 'commission' | 'wholesale' }) {
@@ -20,7 +20,7 @@ export function PartnerNav({ kind }: { kind: 'commission' | 'wholesale' }) {
     { href: '/doi-tac/don-hang', label: 'Đơn hàng', icon: ClipboardList },
     ...(kind === 'commission' ? [{ href: '/doi-tac/nong-dan', label: 'Nông dân', icon: Users }] : []),
     kind === 'commission'
-      ? { href: '/doi-tac/hoa-hong', label: 'Hoa hồng', icon: Wallet }
+      ? { href: '/doi-tac/hoa-hong', label: 'Ví', icon: Wallet }
       : { href: '/doi-tac/hoa-hong', label: 'Tiết kiệm', icon: PiggyBank },
   ]
   const isActive = (href: string) =>

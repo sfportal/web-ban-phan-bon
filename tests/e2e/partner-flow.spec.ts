@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import {
-  addProduct, adminPage, approvePartner, currentPeriodLabel, orderIdFromUrl, registerPartner, uniquePhone, vnd,
+  addProduct, adminPage, approvePartner, orderIdFromUrl, registerPartner, uniquePhone, vnd,
 } from './helpers'
 import { category, OVERRIDE, product, productsIn } from '../support/dataset'
 
@@ -78,13 +78,12 @@ test('CTV đăng ký → được duyệt → lên đơn cho 2 nông dân → đ
     await expect(actions.getByRole('button', { name: next, exact: true })).toBeVisible()
   }
 
-  // CTV: Hoa hồng kỳ hiện tại = hoa hồng của đơn vừa thu đủ tiền (đơn đầu còn "Mới" chưa tính).
-  await page.getByRole('navigation', { name: 'Khu đối tác' }).getByRole('link', { name: 'Hoa hồng' }).click()
-  await expect(page.getByRole('heading', { name: 'Hoa hồng' })).toBeVisible()
-  await expect(page.getByRole('link', { name: currentPeriodLabel() })).toHaveAttribute('aria-current', 'page')
-  const row = page.getByRole('row').filter({ hasText: code })
-  await expect(row).toContainText(vnd(commission))
-  await expect(row).toContainText('Chờ chi')
-  await expect(page.getByRole('row', { name: /Tổng kỳ/ })).toContainText(vnd(commission))
-  await expect(page.getByRole('row')).toHaveCount(5) // tiêu đề + 1 bút toán + 3 dòng tổng
+  // CTV: ví hoa hồng ghi đúng hoa hồng của đơn vừa thu đủ tiền (đơn đầu còn "Mới" chưa tính).
+  await page.getByRole('navigation', { name: 'Khu đối tác' }).getByRole('link', { name: 'Ví' }).click()
+  await expect(page.getByRole('heading', { name: 'Ví hoa hồng' })).toBeVisible()
+  const entries = page.getByRole('region', { name: 'Lịch sử hoa hồng' })
+  await expect(entries.getByRole('listitem')).toHaveCount(1)
+  const row = entries.getByRole('listitem').filter({ hasText: code })
+  await expect(row).toContainText(`+${vnd(commission)}`)
+  await expect(page.getByText('Số dư khả dụng', { exact: true }).locator('..')).toContainText(vnd(commission))
 })

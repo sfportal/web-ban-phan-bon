@@ -1,6 +1,6 @@
 -- Sinh tự động bởi scripts/gen-seed.ts từ data/*.json (npm run data:gen) — không sửa tay.
 -- Dữ liệu cho local/test: nhóm (slug, ảnh), sản phẩm (giá tham khảo thị trường), 2 bậc đối tác
--- kèm tỷ lệ theo nhóm (và 1 mức riêng theo sản phẩm), tên cửa hàng.
+-- kèm tỷ lệ theo nhóm (và 1 mức riêng theo sản phẩm), tên cửa hàng, mức rút tối thiểu.
 -- Không tạo user (auth.users giữ nguyên qua db:reset).
 
 insert into public.categories (slug, name, sort_order, image_url) values
@@ -75,5 +75,8 @@ select t.id, p.id, 10.00
 from public.partner_tiers t, public.products p
 where t.name = 'CTV chuẩn' and p.sku = 'LA-BACA-20-20-20-50G';
 
+-- min_payout cũng được 0006 ghi; on conflict để chạy sau migrations không lỗi.
 insert into public.settings (key, value) values
-  ('store_name', to_jsonb('Cửa hàng vật tư'::text));
+  ('store_name', to_jsonb('Cửa hàng vật tư'::text)),
+  ('min_payout', to_jsonb(100000))
+on conflict (key) do nothing;

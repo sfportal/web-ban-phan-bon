@@ -185,6 +185,10 @@ export type Database = {
           tier_id: string | null
           status: 'pending' | 'active' | 'locked'
           created_at: string
+          bank_name: string | null
+          bank_account: string | null
+          bank_holder: string | null
+          is_demo: boolean
         }
         Insert: {
           id?: string
@@ -196,6 +200,10 @@ export type Database = {
           tier_id?: string | null
           status?: 'pending' | 'active' | 'locked'
           created_at?: string
+          bank_name?: string | null
+          bank_account?: string | null
+          bank_holder?: string | null
+          is_demo?: boolean
         }
         Update: {
           id?: string
@@ -207,6 +215,10 @@ export type Database = {
           tier_id?: string | null
           status?: 'pending' | 'active' | 'locked'
           created_at?: string
+          bank_name?: string | null
+          bank_account?: string | null
+          bank_holder?: string | null
+          is_demo?: boolean
         }
         Relationships: [
           {
@@ -232,6 +244,7 @@ export type Database = {
           address: string | null
           owner_partner_id: string | null
           created_at: string
+          is_demo: boolean
         }
         Insert: {
           id?: string
@@ -240,6 +253,7 @@ export type Database = {
           address?: string | null
           owner_partner_id?: string | null
           created_at?: string
+          is_demo?: boolean
         }
         Update: {
           id?: string
@@ -248,6 +262,7 @@ export type Database = {
           address?: string | null
           owner_partner_id?: string | null
           created_at?: string
+          is_demo?: boolean
         }
         Relationships: [
           {
@@ -328,6 +343,7 @@ export type Database = {
           commission_expected: number
           total_qty: number
           created_at: string
+          is_demo: boolean
         }
         Insert: {
           id?: string
@@ -348,6 +364,7 @@ export type Database = {
           commission_expected?: number
           total_qty?: number
           created_at?: string
+          is_demo?: boolean
         }
         Update: {
           id?: string
@@ -368,6 +385,7 @@ export type Database = {
           commission_expected?: number
           total_qty?: number
           created_at?: string
+          is_demo?: boolean
         }
         Relationships: [
           {
@@ -541,6 +559,117 @@ export type Database = {
           },
         ]
       }
+      payout_batches: {
+        Row: {
+          id: string
+          kind: 'weekly' | 'monthly' | 'custom'
+          cutoff_date: string
+          note: string | null
+          is_demo: boolean
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          kind: 'weekly' | 'monthly' | 'custom'
+          cutoff_date: string
+          note?: string | null
+          is_demo?: boolean
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          kind?: 'weekly' | 'monthly' | 'custom'
+          cutoff_date?: string
+          note?: string | null
+          is_demo?: boolean
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      payouts: {
+        Row: {
+          id: string
+          partner_id: string
+          amount: number
+          source: 'request' | 'batch'
+          batch_id: string | null
+          status: 'requested' | 'approved' | 'paid' | 'rejected'
+          bank_name: string | null
+          bank_account: string | null
+          bank_holder: string | null
+          transfer_ref: string | null
+          transferred_on: string | null
+          proof_path: string | null
+          reject_reason: string | null
+          requested_at: string
+          decided_by: string | null
+          decided_at: string | null
+          paid_by: string | null
+          paid_at: string | null
+          is_demo: boolean
+        }
+        Insert: {
+          id?: string
+          partner_id: string
+          amount: number
+          source: 'request' | 'batch'
+          batch_id?: string | null
+          status: 'requested' | 'approved' | 'paid' | 'rejected'
+          bank_name?: string | null
+          bank_account?: string | null
+          bank_holder?: string | null
+          transfer_ref?: string | null
+          transferred_on?: string | null
+          proof_path?: string | null
+          reject_reason?: string | null
+          requested_at?: string
+          decided_by?: string | null
+          decided_at?: string | null
+          paid_by?: string | null
+          paid_at?: string | null
+          is_demo?: boolean
+        }
+        Update: {
+          id?: string
+          partner_id?: string
+          amount?: number
+          source?: 'request' | 'batch'
+          batch_id?: string | null
+          status?: 'requested' | 'approved' | 'paid' | 'rejected'
+          bank_name?: string | null
+          bank_account?: string | null
+          bank_holder?: string | null
+          transfer_ref?: string | null
+          transferred_on?: string | null
+          proof_path?: string | null
+          reject_reason?: string | null
+          requested_at?: string
+          decided_by?: string | null
+          decided_at?: string | null
+          paid_by?: string | null
+          paid_at?: string | null
+          is_demo?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'payouts_partner_id_fkey'
+            columns: ['partner_id']
+            isOneToOne: false
+            referencedRelation: 'partners'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'payouts_batch_id_fkey'
+            columns: ['batch_id']
+            isOneToOne: false
+            referencedRelation: 'payout_batches'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       settings: {
         Row: { key: string; value: Json }
         Insert: { key: string; value: Json }
@@ -591,6 +720,44 @@ export type Database = {
       retail_recent_count: {
         Args: { p_phone: string; p_ip: string }
         Returns: number
+      }
+      // Ví / chi trả (0006_payouts.sql) — chỉ service_role. Lỗi nghiệp vụ là mã trong error.message.
+      partner_wallet: {
+        Args: { p_partner_id: string }
+        Returns: { earned: number; pending_out: number; paid: number; available: number }[]
+      }
+      request_payout: {
+        // not_commission | missing_bank | below_min | insufficient_balance | partner_not_found
+        Args: { p_partner_id: string; p_amount: number; p_min: number }
+        Returns: string
+      }
+      decide_payout: {
+        // invalid_state | reason_required | invalid_action | payout_not_found
+        Args: { p_payout_id: string; p_action: 'approve' | 'reject'; p_actor: string | null; p_reason: string | null }
+        Returns: undefined
+      }
+      mark_payout_paid: {
+        // invalid_state | ref_required | invalid_date | payout_not_found; đã paid → không làm gì
+        Args: {
+          p_payout_id: string
+          p_actor: string | null
+          p_ref: string
+          p_date: string
+          p_proof_path: string | null
+        }
+        Returns: undefined
+      }
+      create_payout_batch: {
+        Args: {
+          p_kind: 'weekly' | 'monthly' | 'custom'
+          p_cutoff: string
+          p_min: number
+          p_actor: string | null
+          p_note: string | null
+          p_is_demo?: boolean
+        }
+        // { batch_id, created, skipped_no_bank, skipped_below_min }
+        Returns: Json
       }
       current_partner_id: { Args: never; Returns: string }
       current_tier_id: { Args: never; Returns: string }

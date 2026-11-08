@@ -133,6 +133,8 @@ export async function insertOrderFor(
 /** Xóa dữ liệu nghiệp vụ và user test (@partner.local); giữ catalog, bậc, settings của seed. */
 export async function resetData(): Promise<void> {
   const admin = adminClient()
+  await admin.from('payouts').delete().not('id', 'is', null).throwOnError()
+  await admin.from('payout_batches').delete().not('id', 'is', null).throwOnError()
   await admin.from('commission_entries').delete().not('id', 'is', null).throwOnError()
   await admin.from('order_status_log').delete().not('id', 'is', null).throwOnError()
   await admin.from('order_lines').delete().not('id', 'is', null).throwOnError()

@@ -31,6 +31,12 @@ const LEGACY_CATEGORY_NAMES: [oldName: string, slug: string][] = [
 
 const STORE_NAME = 'Cửa hàng vật tư'
 const BUCKET_SQL = `insert into storage.buckets (id, name, public) values ('products', 'products', true) on conflict (id) do nothing;`
+// Chứng từ chi trả: riêng tư, chỉ xem qua signed URL do server tạo; jpg/png/webp/pdf ≤ 5MB.
+const PROOF_BUCKET_SQL = `insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('payout-proofs', 'payout-proofs', false, 5242880, array['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
+on conflict (id) do nothing;`
+/** Mức rút tối thiểu mặc định (VNĐ), setting min_payout. */
+export const MIN_PAYOUT = 100000
 
 // ---------------------------------------------------------------------------
 // Literal SQL
@@ -117,7 +123,7 @@ export function buildSeedSql(categories: CategorySeed[], products: ProductSeed[]
   const override = seedOverride(categories, products)
   return `${GENERATED}
 -- Dữ liệu cho local/test: nhóm (slug, ảnh), sản phẩm (giá tham khảo thị trường), 2 bậc đối tác
--- kèm tỷ lệ theo nhóm (và 1 mức riêng theo sản phẩm), tên cửa hàng.
+-- kèm tỷ lệ theo nhóm (và 1 mức riêng theo sản phẩm), tên cửa hàng, mức rút tối thiểu.
 -- Không tạo user (auth.users giữ nguyên qua db:reset).
 
 insert into public.categories (slug, name, sort_order, image_url) values
@@ -136,8 +142,11 @@ select t.id, p.id, ${sqlRate(override.ratePct)}
 from public.partner_tiers t, public.products p
 where t.name = ${sqlString(TIERS[0].name)} and p.sku = ${sqlString(override.sku)};
 
+-- min_payout cũng được 0006 ghi; on conflict để chạy sau migrations không lỗi.
 insert into public.settings (key, value) values
-  ('store_name', to_jsonb(${sqlString(STORE_NAME)}::text));
+  ('store_name', to_jsonb(${sqlString(STORE_NAME)}::text)),
+  ('min_payout', to_jsonb(${sqlInt(MIN_PAYOUT)}))
+on conflict (key) do nothing;
 `
 }
 
@@ -255,9 +264,11 @@ export function buildSetupSql(migrations: { name: string; sql: string }[], seedS
   const first = migrations[0]?.name.slice(0, 4)
   const last = migrations.at(-1)?.name.slice(0, 4)
   return `-- Cài đặt CSDL cho Supabase bản thật: chạy MỘT LẦN trong SQL Editor của dự án mới (trống).
--- Gồm migrations ${first}–${last}, dữ liệu (nhóm, sản phẩm, bậc đối tác, tỷ lệ) và bucket ảnh 'products'.
+-- Gồm migrations ${first}–${last}, dữ liệu (nhóm, sản phẩm, bậc đối tác, tỷ lệ, cài đặt), bucket ảnh
+-- 'products' (công khai) và bucket chứng từ chi trả 'payout-proofs' (riêng tư).
 ${GENERATED}
--- Dự án đang chạy (đã có dữ liệu cũ): dùng 0005_product_details.sql + data-update-production.sql.
+-- Dự án đang chạy (đã có dữ liệu cũ): chạy từng migration còn thiếu (0005, 0006, …) và
+-- data-update-production.sql (một lần, xem README); bucket 'payout-proofs' tạo bằng câu lệnh cuối file này.
 begin;
 
 ${parts.join('\n')}
@@ -265,6 +276,7 @@ ${parts.join('\n')}
 ${seedSql.trimEnd()}
 
 ${BUCKET_SQL}
+${PROOF_BUCKET_SQL}
 commit;
 `
 }

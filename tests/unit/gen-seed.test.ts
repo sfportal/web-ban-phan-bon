@@ -3,7 +3,7 @@ import categories from '@/data/categories.json'
 import products from '@/data/products.json'
 import type { CategorySeed, ProductSeed } from '@/lib/dataset/validate'
 import { IMAGES } from '@/lib/media/images'
-import { buildProductionUpdateSql, buildSeedSql, OLD_SAMPLE_SKUS, seedOverride } from '@/scripts/gen-seed'
+import { buildProductionUpdateSql, buildSeedSql, buildSetupSql, OLD_SAMPLE_SKUS, seedOverride } from '@/scripts/gen-seed'
 
 const cats = categories as CategorySeed[]
 const prods = products as ProductSeed[]
@@ -37,6 +37,11 @@ describe('buildSeedSql', () => {
     expect(o.ratePct).toBe(cats.find((c) => c.slug === 'phan-bon-la')!.rates.ctv + 2)
     expect(sql).toContain('insert into public.tier_product_rates')
     expect(sql).toContain(`'store_name'`)
+  })
+
+  test('cài đặt min_payout = 100000, chạy sau migration 0006 không lỗi trùng khóa', () => {
+    expect(sql).toContain(`('min_payout', to_jsonb(100000))`)
+    expect(sql).toMatch(/'min_payout'[^;]*on conflict \(key\) do nothing;/)
   })
 
   test("escape dấu ' và xuống dòng", () => {
@@ -82,5 +87,20 @@ describe('buildProductionUpdateSql', () => {
     ]) {
       expect(sql).toContain(`('${oldName}', '${slug}')`)
     }
+  })
+})
+
+describe('buildSetupSql', () => {
+  const sql = buildSetupSql(
+    [{ name: '0005_product_details.sql', sql: '-- a' }, { name: '0006_payouts.sql', sql: '-- b' }],
+    buildSeedSql(cats, prods, IMAGES),
+  )
+
+  test('gồm migration 0006, bucket products công khai và payout-proofs riêng tư, trong transaction', () => {
+    expect(sql).toContain('-- ===== supabase/migrations/0006_payouts.sql =====')
+    expect(sql).toContain("values ('products', 'products', true)")
+    expect(sql).toMatch(/values \('payout-proofs', 'payout-proofs', false, 5242880, array\['image\/jpeg', 'image\/png', 'image\/webp', 'application\/pdf'\]\)/)
+    expect(sql.indexOf('payout-proofs')).toBeLessThan(sql.lastIndexOf('commit;'))
+    expect(statements(sql).at(-1)).toBe('commit;')
   })
 })

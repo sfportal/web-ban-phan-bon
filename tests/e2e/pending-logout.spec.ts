@@ -18,6 +18,15 @@ test('trang chờ duyệt: đăng xuất xóa phiên và đưa về /dang-nhap',
   await expectLoggedOut(page, '/doi-tac')
 })
 
+// Chỉ POST đăng xuất: GET (link, ảnh từ trang khác) trả 405 và giữ nguyên phiên.
+test('GET /dang-xuat trả 405 và không đăng xuất', async ({ page }) => {
+  await registerPartner(page, { phone: uniquePhone(), name: 'Đại lý GET Đăng Xuất' })
+  const res = await page.request.get('/dang-xuat', { maxRedirects: 0 })
+  expect(res.status()).toBe(405)
+  await page.goto('/doi-tac')
+  await expect(page).toHaveURL(/\/cho-duyet$/)
+})
+
 // Nút đăng xuất là form POST thuần tới /dang-xuat: chạy cả khi không có JS / ID Server Action cũ.
 test('trang chờ duyệt: đăng xuất chạy cả khi không có JavaScript', async ({ browser }) => {
   const ctx = await browser.newContext({ javaScriptEnabled: false })

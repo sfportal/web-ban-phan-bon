@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { afterAll, beforeEach, describe, expect, test } from 'vitest'
 import { NextRequest } from 'next/server'
-import { POST as logoutRoute, GET as logoutRouteGet } from '@/app/dang-xuat/route'
+import * as logoutModule from '@/app/dang-xuat/route'
 import { login, registerPartner } from '@/lib/auth/actions'
 import { requirePartner, requireStaff } from '@/lib/auth/guards'
 import { createServerClient } from '@/lib/supabase/server'
@@ -117,27 +117,30 @@ describe('login', () => {
 })
 
 describe('/dang-xuat', () => {
-  const logoutReq = (method: 'POST' | 'GET', cookie?: string) =>
-    new NextRequest('http://localhost/dang-xuat', { method, headers: cookie ? { cookie } : {} })
+  const logoutRoute = logoutModule.POST
+  const logoutReq = (cookie?: string) =>
+    new NextRequest('http://localhost/dang-xuat', { method: 'POST', headers: cookie ? { cookie } : {} })
 
-  for (const [method, handler] of [['POST', logoutRoute], ['GET', logoutRouteGet]] as const) {
-    test(`${method} xóa phiên rồi 303 về /dang-nhap`, async () => {
-      const p = await createPartner({ kind: 'commission', status: 'pending' })
-      await asUser(null, async () => {
-        await redirectTarget(login(fd({ phone: p.phone, password: TEST_PASSWORD })))
-        expect(await redirectTarget(requirePartner())).toBe('/cho-duyet')
-        const res = await handler(logoutReq(method))
-        expect(res.status).toBe(303)
-        expect(new URL(res.headers.get('location')!).pathname).toBe('/dang-nhap')
-        expect(await redirectTarget(requirePartner())).toBe('/dang-nhap')
-      })
+  test('chỉ nhận POST: không có handler GET (Next trả 405)', () => {
+    expect(Object.keys(logoutModule)).toEqual(['POST'])
+  })
+
+  test('POST xóa phiên rồi 303 về /dang-nhap', async () => {
+    const p = await createPartner({ kind: 'commission', status: 'pending' })
+    await asUser(null, async () => {
+      await redirectTarget(login(fd({ phone: p.phone, password: TEST_PASSWORD })))
+      expect(await redirectTarget(requirePartner())).toBe('/cho-duyet')
+      const res = await logoutRoute(logoutReq())
+      expect(res.status).toBe(303)
+      expect(new URL(res.headers.get('location')!).pathname).toBe('/dang-nhap')
+      expect(await redirectTarget(requirePartner())).toBe('/dang-nhap')
     })
-  }
+  })
 
   test('signOut lỗi vẫn xóa cookie phiên sb-* trên phản hồi', async () => {
     const failing = { auth: { signOut: async () => ({ error: new Error('mạng lỗi') }) } }
     const res = await asUser({ client: failing as never }, () =>
-      logoutRoute(logoutReq('POST', 'sb-abc-auth-token.0=x; sb-abc-auth-token.1=y; khac=z')))
+      logoutRoute(logoutReq('sb-abc-auth-token.0=x; sb-abc-auth-token.1=y; khac=z')))
     expect(res.status).toBe(303)
     const cleared = res.cookies.getAll().filter((c) => c.value === '' && c.maxAge === 0).map((c) => c.name)
     expect(cleared.sort()).toEqual(['sb-abc-auth-token.0', 'sb-abc-auth-token.1'])

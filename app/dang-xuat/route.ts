@@ -9,7 +9,8 @@ import { createServerClient } from '@/lib/supabase/server'
 
 const isAuthCookie = (name: string) => name.startsWith('sb-') && name.includes('-auth-token')
 
-async function signOutAndRedirect(request: NextRequest): Promise<NextResponse> {
+// Chỉ POST: GET không có handler nên Next trả 405 (link/ảnh từ trang khác không đăng xuất được người dùng).
+export async function POST(request: NextRequest): Promise<NextResponse> {
   const { error } = await createServerClient().auth.signOut()
   const response = NextResponse.redirect(new URL('/dang-nhap', request.url), 303)
   response.headers.set('Cache-Control', 'private, no-store')
@@ -20,6 +21,3 @@ async function signOutAndRedirect(request: NextRequest): Promise<NextResponse> {
   }
   return response
 }
-
-export const POST = signOutAndRedirect
-export const GET = signOutAndRedirect

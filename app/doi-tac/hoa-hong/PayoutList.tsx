@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Badge, Button, Card, EmptyState, type BadgeTone } from '@/components/ui'
 import { formatDate, formatVnd } from '@/lib/format'
 import { getProofUrl } from '@/lib/payouts/partner-actions'
-import { PAYOUT_ERROR_MESSAGES, PAYOUT_STATUS_LABEL, type PayoutStatus } from '@/lib/payouts/validate'
+import { PAYOUT_ERROR_MESSAGES, PAYOUT_SOURCE_LABEL, PAYOUT_STATUS_LABEL, type PayoutStatus } from '@/lib/payouts/validate'
 import type { PayoutRow } from '@/lib/payouts/wallet'
 
 const TONE: Record<PayoutStatus, BadgeTone> = { requested: 'yellow', approved: 'blue', paid: 'green', rejected: 'red' }
@@ -66,7 +66,7 @@ export function PayoutList({ payouts }: { payouts: PayoutRow[] }) {
               <Badge tone={TONE[p.status]}>{PAYOUT_STATUS_LABEL[p.status]}</Badge>
             </div>
             <p className="text-sm text-stone-600">
-              {p.source === 'batch' ? 'Cửa hàng chi' : 'Yêu cầu rút'} · {formatDate(p.paidAt ?? p.requestedAt)}
+              {PAYOUT_SOURCE_LABEL[p.source]} · {formatDate(p.paidAt ?? p.requestedAt)}
             </p>
             {p.status === 'rejected' && p.rejectReason && (
               <p className="text-sm text-red-800">Lý do: {p.rejectReason}</p>

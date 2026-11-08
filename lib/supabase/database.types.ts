@@ -594,7 +594,7 @@ export type Database = {
           id: string
           partner_id: string
           amount: number
-          source: 'request' | 'batch'
+          source: 'request' | 'batch' | 'legacy'
           batch_id: string | null
           status: 'requested' | 'approved' | 'paid' | 'rejected'
           bank_name: string | null
@@ -615,7 +615,7 @@ export type Database = {
           id?: string
           partner_id: string
           amount: number
-          source: 'request' | 'batch'
+          source: 'request' | 'batch' | 'legacy'
           batch_id?: string | null
           status: 'requested' | 'approved' | 'paid' | 'rejected'
           bank_name?: string | null
@@ -636,7 +636,7 @@ export type Database = {
           id?: string
           partner_id?: string
           amount?: number
-          source?: 'request' | 'batch'
+          source?: 'request' | 'batch' | 'legacy'
           batch_id?: string | null
           status?: 'requested' | 'approved' | 'paid' | 'rejected'
           bank_name?: string | null
@@ -742,7 +742,7 @@ export type Database = {
         Returns: undefined
       }
       mark_payout_paid: {
-        // invalid_state | ref_required | invalid_date | payout_not_found; đã paid → không làm gì
+        // invalid_state | ref_required | invalid_date | payout_not_found; đã paid → false (không đổi gì), vừa đổi → true
         Args: {
           p_payout_id: string
           p_actor: string | null
@@ -750,7 +750,7 @@ export type Database = {
           p_date: string
           p_proof_path: string | null
         }
-        Returns: undefined
+        Returns: boolean
       }
       create_payout_batch: {
         Args: {

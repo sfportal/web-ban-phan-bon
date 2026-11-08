@@ -58,8 +58,31 @@ describe('buildTablesWorkbook', () => {
     for (const n of names) expect(n.length).toBeLessThanOrEqual(31)
     expect(ALL_DATA_SHEETS.map((s) => s.table)).toEqual(expect.arrayContaining([
       'categories', 'products', 'partner_tiers', 'tier_rates', 'tier_product_rates', 'promotions', 'partners',
-      'farmers', 'orders', 'order_lines', 'order_status_log', 'commission_entries', 'settings',
+      'farmers', 'orders', 'order_lines', 'order_status_log', 'commission_entries', 'payout_batches', 'payouts', 'settings',
     ]))
+    expect(names).toEqual(expect.arrayContaining(['Khoản chi', 'Đợt chi']))
+    const keys = (t: string) => ALL_DATA_SHEETS.find((s) => s.table === t)!.columns.map((c) => c.key)
+    expect(keys('partners')).toEqual(expect.arrayContaining(['bank_name', 'bank_account', 'bank_holder']))
+    expect(keys('payouts')).toEqual(expect.arrayContaining([
+      'id', 'partner_id', 'amount', 'source', 'batch_id', 'status', 'bank_name', 'bank_account', 'bank_holder',
+      'transfer_ref', 'transferred_on', 'proof_path', 'reject_reason', 'requested_at', 'decided_by', 'decided_at',
+      'paid_by', 'paid_at', 'is_demo',
+    ]))
+    expect(keys('payout_batches')).toEqual(['id', 'kind', 'cutoff_date', 'note', 'created_by', 'created_at', 'is_demo'])
+  })
+
+  test('cột có nhãn: giá trị → nhãn tiếng Việt (nguồn legacy)', async () => {
+    const payouts = ALL_DATA_SHEETS.find((s) => s.table === 'payouts')!
+    const wb = await read(await buildTablesWorkbook([{
+      name: payouts.name, columns: payouts.columns,
+      rows: [{ id: 'x', amount: 500000, source: 'legacy', status: 'paid', transfer_ref: 'LEGACY-TRUOC-VI', is_demo: false }],
+    }]))
+    const ws = wb.worksheets[0]
+    const header = rowValues(ws, 1)
+    const value = (h: string) => ws.getRow(2).getCell(header.indexOf(h) + 1).value
+    expect(value('Nguồn')).toBe('Đã chi trước khi có ví')
+    expect(value('Trạng thái')).toBe('Đã chuyển')
+    expect(value('Mã giao dịch')).toBe('LEGACY-TRUOC-VI')
   })
 })
 

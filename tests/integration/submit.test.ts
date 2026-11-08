@@ -357,3 +357,35 @@ describe('priceAndDiff', () => {
     expect(res).toMatchObject({ status: 'ok', priced: { subtotal: 350000, commissionExpected: 0 } })
   })
 })
+
+describe('thông báo đơn mới', () => {
+  test('đơn của đối tác thử có "[THỬ]", đơn thật không', async () => {
+    await adminClient().from('settings').upsert({ key: 'telegram_chat_id', value: '-100999' }).throwOnError()
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', '123:abc')
+    vi.stubEnv('RESEND_API_KEY', '')
+    const realFetch = globalThis.fetch
+    const telegram = vi.fn()
+    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (!url.startsWith('https://api.telegram.org/')) return realFetch(input, init)
+      telegram(JSON.parse(String(init?.body)).text)
+      return Promise.resolve(new Response('{}', { status: 200 }))
+    })
+    try {
+      const demo = await createPartner({ kind: 'wholesale' })
+      await adminClient().from('partners').update({ is_demo: true }).eq('id', demo.partnerId).throwOnError()
+      const submit = (who: TestPartner) => asUser(who, () =>
+        submitPartnerOrder({ clientKey: k(), lines: [l(P1, 1, null, 350000)], deliveryAddress: 'Kho', acceptChanges: false }))
+      expect(await submit(demo)).toMatchObject({ status: 'ok' })
+      await vi.waitFor(() => expect(telegram).toHaveBeenCalledTimes(1))
+      expect(telegram.mock.calls[0][0]).toMatch(/^\[THỬ\] Đơn mới DH/)
+      expect(await submit(dl)).toMatchObject({ status: 'ok' })
+      await vi.waitFor(() => expect(telegram).toHaveBeenCalledTimes(2))
+      expect(telegram.mock.calls[1][0]).toMatch(/^Đơn mới DH/)
+    } finally {
+      vi.unstubAllGlobals()
+      vi.unstubAllEnvs()
+      await adminClient().from('settings').delete().eq('key', 'telegram_chat_id').throwOnError()
+    }
+  })
+})

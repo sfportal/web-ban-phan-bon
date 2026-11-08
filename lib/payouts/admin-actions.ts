@@ -63,11 +63,12 @@ function checkPaidInput(ref: unknown, date: unknown): PaidInput | { error: 'ref_
   return { ref: r, date }
 }
 
+/** null = vừa đánh dấu; 'unchanged' = khoản đã chuyển từ trước (RPC trả false); còn lại là mã lỗi. */
 async function markPaidRpc(id: string, actor: string, input: PaidInput, proofPath: string | null) {
-  const { error } = await adminClient().rpc('mark_payout_paid', {
+  const { data, error } = await adminClient().rpc('mark_payout_paid', {
     p_payout_id: id, p_actor: actor, p_ref: input.ref, p_date: input.date, p_proof_path: proofPath,
   })
-  if (!error) return null
+  if (!error) return data === false ? 'unchanged' : null
   const code = rpcCode(error, MARK_ERRORS)
   return code === 'payout_not_found' ? 'not_found' : code
 }
@@ -75,7 +76,8 @@ async function markPaidRpc(id: string, actor: string, input: PaidInput, proofPat
 /**
  * Đánh dấu đã chuyển: mã GD (bắt buộc), ngày (≤ hôm nay giờ VN), chứng từ tùy chọn
  * (ô file trống = không có). Có file → kiểm tra → tải lên payout-proofs/<partner>/<id>.<ext>
- * → RPC; tải lỗi → upload_failed, trạng thái không đổi. Khoản đã chuyển → ok, không đổi gì.
+ * → RPC; tải lỗi → upload_failed, trạng thái không đổi. Khoản đã chuyển → ok, không đổi gì
+ * (kèm file thì invalid_state; nếu admin khác vừa đánh dấu trong lúc tải lên thì gỡ file đã tải).
  */
 export async function markPayoutPaid(form: Fields): Promise<{ ok: true } | { error: MarkPaidError }> {
   const { userId } = await requireStaff('admin')
@@ -114,6 +116,7 @@ export async function markPayoutPaid(form: Fields): Promise<{ ok: true } | { err
   }
   if (failed) {
     if (path) await removeProof(path)
+    if (failed === 'unchanged') return path ? { error: 'invalid_state' } : { ok: true }
     return { error: failed }
   }
   return { ok: true }
@@ -134,7 +137,7 @@ export async function markBatchPaid(
   for (const r of rows) {
     try {
       const code = await markPaidRpc(r.id, userId, checked, null)
-      if (code) failed.push({ id: r.id, code })
+      if (code && code !== 'unchanged') failed.push({ id: r.id, code })
       else ok++
     } catch (e) {
       console.error('markBatchPaid', r.id, e)

@@ -85,6 +85,24 @@ describe('notifyNewOrder', () => {
     expect(text).not.toContain('1.170.000 đ')
   })
 
+  test('đơn thử → "[THỬ]" ở đầu tiêu đề và nội dung; đơn thật không có', async () => {
+    vi.stubEnv('RESEND_API_KEY', 're_test')
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', '123:abc')
+    settingsRows = [
+      { key: 'notify_email', value: 'chu@cuahang.vn' },
+      { key: 'telegram_chat_id', value: '-100123' },
+    ]
+    await notifyNewOrder({ ...order, isDemo: true })
+    const email = JSON.parse(fetchMock.mock.calls.find(([u]) => String(u).includes('resend'))![1].body)
+    const tg = JSON.parse(fetchMock.mock.calls.find(([u]) => String(u).includes('telegram'))![1].body)
+    expect(email.subject).toMatch(/^\[THỬ\] /)
+    expect(email.text).toMatch(/^\[THỬ\] Đơn mới DH2611-0001/)
+    expect(tg.text).toMatch(/^\[THỬ\] /)
+    fetchMock.mockClear()
+    await notifyNewOrder(order)
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).text ?? '').not.toContain('[THỬ]')
+  })
+
   test('fetch lỗi không throw', async () => {
     vi.stubEnv('RESEND_API_KEY', 're_test')
     vi.stubEnv('TELEGRAM_BOT_TOKEN', '123:abc')
@@ -136,6 +154,13 @@ describe('notifyPayoutRequest', () => {
     for (const part of ['CTV An', '0905000001', '1.500.000 đ', 'Vietcombank', '0123456789', 'NGUYEN VAN AN']) {
       expect(tg.text).toContain(part)
     }
+  })
+
+  test('đối tác thử → "[THỬ]"', async () => {
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', '123:abc')
+    settingsRows = [{ key: 'telegram_chat_id', value: '-100123' }]
+    await notifyPayoutRequest({ ...notice, isDemo: true })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).text).toMatch(/^\[THỬ\] Yêu cầu rút tiền/)
   })
 
   test('fetch lỗi không throw', async () => {

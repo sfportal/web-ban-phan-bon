@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { Badge, Button, Card, Textarea, type BadgeTone } from '@/components/ui'
 import { formatDate, formatVnd } from '@/lib/format'
 import { approvePayout, getAdminProofUrl, markPayoutPaid, rejectPayout } from '@/lib/payouts/admin-actions'
-import { PAYOUT_ERROR_MESSAGES, PAYOUT_STATUS_LABEL, type PayoutErrorCode, type PayoutStatus } from '@/lib/payouts/validate'
+import { ADMIN_PAYOUT_SOURCE_LABEL, PAYOUT_ERROR_MESSAGES, PAYOUT_STATUS_LABEL, type PayoutErrorCode, type PayoutStatus } from '@/lib/payouts/validate'
 import type { AdminPayoutRow } from '@/lib/payouts/wallet'
 import { MarkPaidDialog } from './MarkPaidDialog'
 
@@ -98,7 +98,7 @@ export function PayoutItem({ p, canAct }: { p: AdminPayoutRow; canAct: boolean }
         {p.bankName ? `${p.bankName} · ${p.bankAccount} · ${p.bankHolder}` : 'Chưa có thông tin ngân hàng'}
       </p>
       <p className="text-sm text-stone-600">
-        {p.source === 'batch' ? 'Đợt chi' : 'Yêu cầu'} {formatDate(p.requestedAt)}
+        {ADMIN_PAYOUT_SOURCE_LABEL[p.source]} {formatDate(p.requestedAt)}
         {p.status === 'paid' && p.transferredOn && ` · chuyển ${formatDate(p.transferredOn)}`}
       </p>
       {p.transferRef && <p className="break-all text-sm text-stone-700">Mã GD: {p.transferRef}</p>}

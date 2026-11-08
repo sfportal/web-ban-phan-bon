@@ -2,7 +2,7 @@
 // cho kế toán, chi trả (yêu cầu rút, đợt chi, số dư) và sao lưu mỗi bảng một sheet. Tiêu đề cột tiếng Việt, cột tiền `#,##0`.
 import ExcelJS from 'exceljs'
 import { STATUS_LABEL, type OrderStatus } from '@/lib/orders/status'
-import { BATCH_KIND_LABEL, PAYOUT_STATUS_LABEL, type BatchKind, type PayoutStatus } from '@/lib/payouts/validate'
+import { BATCH_KIND_LABEL, PAYOUT_SOURCE_LABEL, PAYOUT_STATUS_LABEL, type BatchKind, type PayoutStatus } from '@/lib/payouts/validate'
 
 const FLAG_HEADER = 'Dữ liệu thử'
 const flag = (v: boolean | null | undefined) => (v ? 'Có' : '—')
@@ -178,7 +178,13 @@ export async function buildBalancesSheet(rows: BalanceExportRow[]): Promise<Buff
 
 // Sao lưu: mỗi bảng một sheet --------------------------------------------------------------
 
-export type ColumnSpec = { key: string; header: string; type?: 'money' | 'datetime' | 'json' | 'flag' }
+export type ColumnSpec = {
+  key: string
+  header: string
+  type?: 'money' | 'datetime' | 'json' | 'flag'
+  /** Giá trị → nhãn tiếng Việt (giá trị lạ giữ nguyên). */
+  labels?: Readonly<Record<string, string>>
+}
 export type TableSheet = { name: string; columns: ColumnSpec[]; rows: Record<string, unknown>[] }
 
 function cell(v: unknown, type: ColumnSpec['type']): ExcelJS.CellValue {
@@ -194,7 +200,12 @@ export async function buildTablesWorkbook(sheets: TableSheet[]): Promise<Buffer>
   const wb = new ExcelJS.Workbook()
   for (const s of sheets) {
     const ws = sheet(wb, s.name, s.columns.map((c) => c.header), s.columns.map((c) => (c.type === 'json' ? 40 : 18)))
-    for (const r of s.rows) ws.addRow(s.columns.map((c) => cell(r[c.key], c.type)))
+    for (const r of s.rows) {
+      ws.addRow(s.columns.map((c) => {
+        const v = r[c.key]
+        return c.labels && typeof v === 'string' ? (c.labels[v] ?? v) : cell(v, c.type)
+      }))
+    }
     s.columns.forEach((c, i) => {
       if (c.type === 'money') ws.getColumn(i + 1).numFmt = MONEY
       if (c.type === 'datetime') ws.getColumn(i + 1).numFmt = DATE_TIME
@@ -203,7 +214,8 @@ export async function buildTablesWorkbook(sheets: TableSheet[]): Promise<Buffer>
   return toBuffer(wb)
 }
 
-const col = (key: string, header: string, type?: ColumnSpec['type']): ColumnSpec => ({ key, header, type })
+const col = (key: string, header: string, type?: ColumnSpec['type'], labels?: ColumnSpec['labels']): ColumnSpec =>
+  ({ key, header, type, labels })
 
 /** Các bảng chính trong file "Xuất toàn bộ dữ liệu" (thứ tự sheet). `order` = cột sắp xếp ổn định. */
 export const ALL_DATA_SHEETS: { table: string; name: string; order: string[]; columns: ColumnSpec[] }[] = [
@@ -235,6 +247,7 @@ export const ALL_DATA_SHEETS: { table: string; name: string; order: string[]; co
     table: 'partners', name: 'Đối tác', order: ['id'], columns: [
       col('id', 'ID'), col('phone', 'SĐT'), col('name', 'Tên'), col('region', 'Khu vực'),
       col('delivery_address', 'Địa chỉ giao'), col('tier_id', 'ID bậc'), col('status', 'Trạng thái'),
+      col('bank_name', 'Ngân hàng'), col('bank_account', 'Số tài khoản'), col('bank_holder', 'Chủ tài khoản'),
       col('created_at', 'Ngày đăng ký', 'datetime'), col('is_demo', FLAG_HEADER, 'flag'),
     ],
   },
@@ -277,8 +290,28 @@ export const ALL_DATA_SHEETS: { table: string; name: string; order: string[]; co
   {
     table: 'commission_entries', name: 'Hoa hồng', order: ['id'], columns: [
       col('id', 'ID'), col('partner_id', 'ID đối tác'), col('order_id', 'ID đơn'), col('kind', 'Loại'),
-      col('amount', 'Số tiền', 'money'), col('period', 'Kỳ'), col('status', 'Trạng thái'),
-      col('created_at', 'Ngày tạo', 'datetime'), col('paid_at', 'Ngày chi', 'datetime'),
+      // status/paid_at: cách chi cũ (trước khi có ví), không còn cập nhật — xem sheet Khoản chi.
+      col('amount', 'Số tiền', 'money'), col('period', 'Kỳ'), col('status', 'Trạng thái (cũ)'),
+      col('created_at', 'Ngày tạo', 'datetime'), col('paid_at', 'Ngày chi (cũ)', 'datetime'),
+    ],
+  },
+  {
+    table: 'payout_batches', name: 'Đợt chi', order: ['id'], columns: [
+      col('id', 'ID'), col('kind', 'Loại', undefined, BATCH_KIND_LABEL), col('cutoff_date', 'Ngày chốt'),
+      col('note', 'Ghi chú'), col('created_by', 'Người tạo'), col('created_at', 'Ngày tạo', 'datetime'),
+      col('is_demo', FLAG_HEADER, 'flag'),
+    ],
+  },
+  {
+    table: 'payouts', name: 'Khoản chi', order: ['id'], columns: [
+      col('id', 'ID'), col('partner_id', 'ID đối tác'), col('amount', 'Số tiền', 'money'),
+      col('source', 'Nguồn', undefined, PAYOUT_SOURCE_LABEL), col('batch_id', 'ID đợt chi'),
+      col('status', 'Trạng thái', undefined, PAYOUT_STATUS_LABEL), col('bank_name', 'Ngân hàng'),
+      col('bank_account', 'Số tài khoản'), col('bank_holder', 'Chủ tài khoản'), col('transfer_ref', 'Mã giao dịch'),
+      col('transferred_on', 'Ngày chuyển'), col('proof_path', 'Chứng từ'), col('reject_reason', 'Lý do từ chối'),
+      col('requested_at', 'Ngày yêu cầu', 'datetime'), col('decided_by', 'Người duyệt'),
+      col('decided_at', 'Ngày duyệt', 'datetime'), col('paid_by', 'Người chuyển'), col('paid_at', 'Ngày đánh dấu', 'datetime'),
+      col('is_demo', FLAG_HEADER, 'flag'),
     ],
   },
   { table: 'settings', name: 'Cài đặt', order: ['key'], columns: [col('key', 'Khóa'), col('value', 'Giá trị', 'json')] },

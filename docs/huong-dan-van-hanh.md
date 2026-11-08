@@ -181,7 +181,9 @@ hàng). Mỗi CTV có một **ví hoa hồng**:
 
 - **Đã kiếm** = tổng hoa hồng đã ghi nhận (đã trừ phần trả hàng).
 - **Đang chờ chi** = các khoản đã yêu cầu rút hoặc đã duyệt nhưng chưa chuyển tiền.
-- **Đã nhận** = các khoản cửa hàng đã chuyển.
+- **Đã nhận** = các khoản cửa hàng đã chuyển. Hoa hồng cửa hàng đã chi **trước khi có ví** (nút
+  "Đã chi" cũ) được ghi sẵn thành một khoản **"Đã chi trước khi có ví"** (mã GD `LEGACY-TRUOC-VI`),
+  nên không bị rút lại.
 - **Khả dụng** = Đã kiếm − Đang chờ chi − Đã nhận. Đây là số CTV được phép rút.
 
 Nếu khách trả hàng sau khi cửa hàng đã chi hoa hồng, số khả dụng có thể **âm**; khi đó CTV thấy
@@ -248,8 +250,9 @@ chuyển trong đợt; cách này không đính kèm chứng từ).
 - Tab **Số dư** liệt kê từng CTV: đã kiếm, đang chờ chi, đã nhận, khả dụng và có khai ngân hàng
   chưa. Dùng để biết cửa hàng đang nợ hoa hồng bao nhiêu.
 - Mỗi tab (**Yêu cầu rút**, **Đợt chi**, **Số dư**) có nút **Xuất Excel** để lưu và gửi kế toán.
-- Trang **Tổng quan** có thẻ **Hoa hồng chờ chi**: tổng số khả dụng đang dương của các CTV cộng
-  với các khoản đang chờ chuyển.
+- Trang **Tổng quan** có thẻ **Hoa hồng chờ chi**: tổng hoa hồng CTV đã kiếm được trừ đi các khoản
+  đã chuyển (không tính dữ liệu thử). Số này gồm cả các khoản đang chờ chuyển; CTV nào đang âm (trả
+  hàng sau khi đã chi) thì phần âm được trừ vào tổng.
 
 ### 5.5. Cài đặt mức rút tối thiểu và phân quyền
 
@@ -274,6 +277,10 @@ thử** (chỉ quản trị).
 - **Không lẫn vào số liệu thật:** trang **Tổng quan** (số đơn, doanh số, hoa hồng chờ chi) **không
   tính** dữ liệu thử.
 - Không tạo lại được khi đang có dữ liệu thử, hoặc khi các số điện thoại trên đã bị dùng.
+- Đơn thử dùng chung dãy **mã đơn** với đơn thật (`DHyymm-nnnn`), nên sau khi xóa dữ liệu thử, dãy
+  mã đơn thật sẽ có chỗ bị nhảy số. Đây là bình thường, không phải mất đơn.
+- Thông báo Telegram/email do hoạt động thử gây ra (đơn của đối tác thử, yêu cầu rút của CTV thử)
+  có chữ **[THỬ]** ở đầu.
 - **Xóa toàn bộ dữ liệu thử:** bấm nút → **Xác nhận xóa**. Việc xóa là **được ăn cả, ngã về
   không**: hoặc xóa hết, hoặc không xóa gì. Nếu đã có dữ liệu **thật** gắn với tài khoản thử (ví
   dụ ai đó đã dùng số 0900000101 để đặt đơn thật), website **từ chối xóa và hiện thông báo**; khi

@@ -2,7 +2,7 @@
 // nhãn trạng thái và thông báo lỗi tiếng Việt cho các mã lỗi của Server Action.
 
 export type PayoutStatus = 'requested' | 'approved' | 'paid' | 'rejected'
-export type PayoutSource = 'request' | 'batch'
+export type PayoutSource = 'request' | 'batch' | 'legacy'
 export type BatchKind = 'weekly' | 'monthly' | 'custom'
 
 export const PAYOUT_STATUS_LABEL: Record<PayoutStatus, string> = {
@@ -10,6 +10,19 @@ export const PAYOUT_STATUS_LABEL: Record<PayoutStatus, string> = {
   approved: 'Đã duyệt',
   paid: 'Đã chuyển',
   rejected: 'Từ chối',
+}
+
+/** Nguồn khoản chi (góc nhìn đối tác). 'legacy' = hoa hồng đã chi theo cách cũ, trước khi có ví (0008). */
+export const PAYOUT_SOURCE_LABEL: Record<PayoutSource, string> = {
+  request: 'Yêu cầu rút',
+  batch: 'Cửa hàng chi',
+  legacy: 'Đã chi trước khi có ví',
+}
+/** Nguồn khoản chi (góc nhìn admin, đứng trước ngày). */
+export const ADMIN_PAYOUT_SOURCE_LABEL: Record<PayoutSource, string> = {
+  request: 'Yêu cầu',
+  batch: 'Đợt chi',
+  legacy: 'Đã chi trước khi có ví',
 }
 
 export const BATCH_KINDS = ['weekly', 'monthly', 'custom'] as const satisfies readonly BatchKind[]

@@ -222,14 +222,14 @@ describe('mark_payout_paid', () => {
     await earn(p, 150000)
     const id = await requestOk(p, 100000)
     const proof = `${p.partnerId}/${id}.pdf`
-    expect((await markPaid(id, ' GD123 ', vnDate(-1), proof, admin.userId)).error).toBeNull()
+    expect(await markPaid(id, ' GD123 ', vnDate(-1), proof, admin.userId)).toMatchObject({ error: null, data: true })
     const first = await payout(id)
     expect(first).toMatchObject({
       status: 'paid', transfer_ref: 'GD123', transferred_on: vnDate(-1), proof_path: proof, paid_by: admin.userId,
     })
     expect(first.paid_at).not.toBeNull()
 
-    expect((await markPaid(id, 'KHAC', vnDate(), null)).error).toBeNull()
+    expect(await markPaid(id, 'KHAC', vnDate(), null)).toMatchObject({ error: null, data: false })
     const second = await payout(id)
     expect(second).toEqual(first)
     expect(await wallet(p)).toEqual({ earned: 150000, pending_out: 0, paid: 100000, available: 50000 })

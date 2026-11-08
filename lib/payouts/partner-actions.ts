@@ -50,10 +50,10 @@ export async function requestPayout(form: Fields): Promise<{ ok: true; id: strin
   after(async () => {
     try {
       const { data } = await db.from('payouts')
-        .select('amount, bank_name, bank_account, bank_holder, partners(name, phone)').eq('id', id).single().throwOnError()
+        .select('amount, bank_name, bank_account, bank_holder, is_demo, partners(name, phone)').eq('id', id).single().throwOnError()
       await notifyPayoutRequest({
         partnerName: data.partners?.name ?? session.name, phone: data.partners?.phone ?? '', amount: Number(data.amount),
-        bankName: data.bank_name, bankAccount: data.bank_account, bankHolder: data.bank_holder,
+        bankName: data.bank_name, bankAccount: data.bank_account, bankHolder: data.bank_holder, isDemo: data.is_demo,
       })
     } catch (e) {
       console.error('notifyPayoutRequest', e)

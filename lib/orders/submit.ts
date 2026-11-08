@@ -8,7 +8,7 @@ import { after } from 'next/server'
 import { z } from 'zod'
 import { requirePartner, type PartnerSession } from '@/lib/auth/guards'
 import { getActivePromos, getProductsByIds, getTier } from '@/lib/catalog/queries'
-import { notifyNewOrder } from '@/lib/notify'
+import { notifyNewOrder, type NewOrderNotice } from '@/lib/notify'
 import { normalizePhone } from '@/lib/phone'
 import { PricingError, priceOrder, type PricedOrder } from '@/lib/pricing'
 import { adminClient } from '@/lib/supabase/admin'
@@ -268,8 +268,20 @@ export async function submitPartnerOrder(raw: PartnerOrderInput): Promise<Submit
     code: created.code, source: 'partner' as const, partnerName: session.name,
     subtotal: result.priced.subtotal, partnerPayable: result.priced.partnerPayable,
   }
-  after(() => notifyNewOrder(notice))
+  after(() => notifyOrder(created.id, notice))
   return { status: 'ok', orderId: created.id, code: created.code }
+}
+
+/** Báo đơn mới; đơn thử (is_demo do DB suy ra) có "[THỬ]". Đọc cờ lỗi → vẫn báo như đơn thật. */
+async function notifyOrder(orderId: string, notice: Omit<NewOrderNotice, 'isDemo'>): Promise<void> {
+  let isDemo = false
+  try {
+    const { data } = await adminClient().from('orders').select('is_demo').eq('id', orderId).maybeSingle().throwOnError()
+    isDemo = !!data?.is_demo
+  } catch (e) {
+    console.error('notifyOrder is_demo', e)
+  }
+  await notifyNewOrder({ ...notice, isDemo })
 }
 
 // Đơn lẻ (khách vãng lai) -----------------------------------------------------------
@@ -347,6 +359,6 @@ export async function submitRetailOrder(raw: RetailOrderInput): Promise<SubmitRe
     code: created.code, source: 'retail' as const, partnerName: owner?.name ?? null,
     subtotal: result.priced.subtotal, partnerPayable: result.priced.partnerPayable,
   }
-  after(() => notifyNewOrder(notice))
+  after(() => notifyOrder(created.id, notice))
   return { status: 'ok', orderId: created.id, code: created.code }
 }

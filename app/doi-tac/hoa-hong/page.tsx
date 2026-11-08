@@ -43,7 +43,7 @@ async function WalletView({ session }: { session: PartnerSession }) {
       {wallet.available < 0 && (
         <p role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 font-semibold text-red-800">
           <TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />
-          Số dư đang âm do đơn trả hàng. Khoản này sẽ được trừ vào hoa hồng các đơn sau.
+          Số dư âm do trả hàng sau khi đã chi. Khoản này sẽ được trừ vào hoa hồng các đơn sau.
         </p>
       )}
 

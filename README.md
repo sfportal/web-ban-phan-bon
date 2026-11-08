@@ -62,9 +62,10 @@ Khuyến nghị: Supabase (bản host, supabase.com) + Vercel.
 
 1. Đăng ký supabase.com → **New project** (region Singapore cho gần Việt Nam). Ghi lại mật khẩu DB.
 2. Chạy migrations **theo đúng thứ tự** `supabase/migrations/0001_schema.sql` → `0002_rls.sql` →
-   `0003_functions.sql` → `0004_phone_check.sql` → `0005_product_details.sql` → `0006_payouts.sql` → `0007_demo_flag.sql`, chọn một trong ba cách:
+   `0003_functions.sql` → `0004_phone_check.sql` → `0005_product_details.sql` → `0006_payouts.sql` → `0007_demo_flag.sql` →
+   `0008_legacy_paid.sql`, chọn một trong ba cách:
    - **Một file gộp:** dán toàn bộ `supabase/setup-production.sql` vào SQL Editor, bấm *Run* — gồm
-     migrations 0001–0007, dữ liệu sản phẩm/nhóm/bậc (giống `seed.sql`), bucket ảnh `products` và bucket
+     migrations 0001–0008, dữ liệu sản phẩm/nhóm/bậc (giống `seed.sql`), bucket ảnh `products` và bucket
      chứng từ `payout-proofs` (khi đó bỏ qua bước 3, 4 và 4b); hoặc
    - **SQL Editor** trên dashboard: mở từng file, dán toàn bộ nội dung, bấm *Run*; hoặc
    - **Supabase CLI**:
@@ -82,9 +83,12 @@ Khuyến nghị: Supabase (bản host, supabase.com) + Vercel.
 4b. **Bucket chứng từ chi trả (riêng tư)** — bắt buộc cho tính năng chi trả, nếu không dùng file gộp
    ở trên. Trong SQL Editor chạy:
    ```sql
-   insert into storage.buckets (id,name,public) values ('payout-proofs','payout-proofs',false) on conflict do nothing;
+   insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+   values ('payout-proofs', 'payout-proofs', false, 5242880, array['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
+   on conflict (id) do nothing;
    ```
-   Bucket phải **không công khai**: ứng dụng chỉ cấp link xem 5 phút cho đúng chủ khoản chi và admin.
+   Bucket phải **không công khai** (chỉ nhận JPG/PNG/WebP/PDF ≤ 5MB): ứng dụng chỉ cấp link xem 5 phút
+   cho đúng chủ khoản chi và admin.
 5. **Authentication → Providers → Email**: giữ bật (đối tác đăng nhập bằng SĐT, nội bộ map thành
    email `<sdt>@partner.local`; tài khoản được tạo qua API quản trị nên không cần gửi email xác nhận).
 6. **Project Settings → API**: lấy *Project URL*, khoá `anon` và khoá `service_role`.
@@ -98,18 +102,39 @@ Bộ sản phẩm/nhóm gốc nằm ở `data/products.json` và `data/categorie
 trong `lib/media/images.ts`, nguồn ảnh ở [`docs/nguon-anh.md`](docs/nguon-anh.md)). Sửa JSON rồi chạy:
 
 ```bash
-npm run data:gen   # kiểm tra dữ liệu (validateDataset) rồi sinh lại 3 file SQL bên dưới — không sửa tay
+npm run data:gen   # kiểm tra dữ liệu (validateDataset) rồi sinh lại 4 file SQL bên dưới — không sửa tay
 ```
 
 | File sinh ra | Dùng cho |
 |---|---|
 | `supabase/seed.sql` | local/test (`npm run db:reset` chạy sau migrations) |
-| `supabase/setup-production.sql` | dự án Supabase **mới, trống**: migrations 0001–0007 + dữ liệu + bucket ảnh và bucket chứng từ |
+| `supabase/setup-production.sql` | dự án Supabase **mới, trống**: migrations 0001–0008 + dữ liệu + bucket ảnh và bucket chứng từ |
 | `supabase/data-update-production.sql` | dự án **đang chạy** còn bộ 10 sản phẩm mẫu cũ (xem dưới) |
+| `supabase/deploy-payouts-production.sql` | dự án **đang chạy** (đã có 0001–0005): thêm ví hoa hồng/chi trả/dữ liệu thử (xem dưới) |
 
-**Dự án đang chạy** khi cập nhật tính năng ví hoa hồng/chi trả/dữ liệu thử: chạy thêm `0006_payouts.sql` và
-`0007_demo_flag.sql` trong SQL Editor (theo thứ tự) và tạo bucket `payout-proofs` như mục 4b; nếu chưa có
-`0005` thì chạy `0005` trước.
+### Cập nhật bản thật lên ví hoa hồng / chi trả / dữ liệu thử
+
+Dự án đang chạy đã có `0001`–`0005`. Làm **đúng thứ tự** (code mới cần bảng `payouts`; code cũ vẫn chạy
+được trên schema mới, nên SQL phải chạy **trước** khi đẩy code):
+
+1. **Chạy SQL.** Mở Supabase → **SQL Editor**, dán **toàn bộ** `supabase/deploy-payouts-production.sql`,
+   bấm *Run*. File chạy trong một giao dịch (`begin … commit`): lỗi ở đâu thì không đổi gì. Gồm
+   `0006_payouts.sql`, `0007_demo_flag.sql`, `0008_legacy_paid.sql` (hoa hồng đã đánh dấu "Đã chi" theo
+   cách cũ thành khoản chi **"Đã chi trước khi có ví"**, mã `LEGACY-TRUOC-VI`, để không bị rút lại) và
+   bucket `payout-proofs`. Đã chạy rồi thì file tự dừng với lỗi "đã chạy rồi" — không cần làm gì thêm.
+   Từ lúc này tới khi xong bước 3, **đừng bấm nút "Đã chi" cũ** ở trang Hoa hồng.
+2. **Kiểm tra** trong SQL Editor:
+   ```sql
+   -- hoa hồng đã chi theo cách cũ = tổng các khoản legacy (trừ CTV có tổng đã chi ≤ 0 do trả hàng)
+   select (select coalesce(sum(amount), 0) from public.commission_entries where status = 'paid') as da_chi_cu,
+          (select coalesce(sum(amount), 0) from public.payouts where source = 'legacy') as legacy;
+   -- ví một CTV, so với báo cáo hoa hồng cũ (available = chưa chi)
+   select * from public.partner_wallet('<id CTV>');
+   select id, public, file_size_limit from storage.buckets where id = 'payout-proofs';
+   ```
+3. **Đẩy code:** push nhánh `main` lên GitHub → Vercel tự build và triển khai.
+
+Không chạy `setup-production.sql` (chỉ cho dự án trống) hay `data-update-production.sql` (đã chạy một lần) ở bước này.
 
 Dự án đang chạy từ trước bản giao diện mới: trong SQL Editor chạy **`0005_product_details.sql`**
 trước (thêm cột thương hiệu, mô tả ngắn, thành phần, công dụng, cách dùng, cây trồng, nổi bật; slug

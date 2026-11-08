@@ -1,9 +1,13 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, test } from 'vitest'
 import categories from '@/data/categories.json'
 import products from '@/data/products.json'
 import type { CategorySeed, ProductSeed } from '@/lib/dataset/validate'
 import { IMAGES } from '@/lib/media/images'
-import { buildProductionUpdateSql, buildSeedSql, buildSetupSql, OLD_SAMPLE_SKUS, seedOverride } from '@/scripts/gen-seed'
+import {
+  buildDeploySql, buildProductionUpdateSql, buildSeedSql, buildSetupSql, DEPLOY_MIGRATIONS, OLD_SAMPLE_SKUS, seedOverride,
+} from '@/scripts/gen-seed'
 
 const cats = categories as CategorySeed[]
 const prods = products as ProductSeed[]
@@ -102,5 +106,48 @@ describe('buildSetupSql', () => {
     expect(sql).toMatch(/values \('payout-proofs', 'payout-proofs', false, 5242880, array\['image\/jpeg', 'image\/png', 'image\/webp', 'application\/pdf'\]\)/)
     expect(sql.indexOf('payout-proofs')).toBeLessThan(sql.lastIndexOf('commit;'))
     expect(statements(sql).at(-1)).toBe('commit;')
+  })
+})
+
+const SUPABASE = path.resolve(import.meta.dirname, '../../supabase')
+const MIGRATIONS = readdirSync(path.join(SUPABASE, 'migrations')).filter((f) => f.endsWith('.sql')).sort()
+  .map((name) => ({ name, sql: readFileSync(path.join(SUPABASE, 'migrations', name), 'utf8') }))
+const generated = (name: string) => readFileSync(path.join(SUPABASE, name), 'utf8')
+
+describe('buildDeploySql', () => {
+  const sql = buildDeploySql(MIGRATIONS)
+  const lines = statements(sql)
+
+  test('một giao dịch: chốt chạy một lần → 0006, 0007, 0008 (đủ nội dung) → bucket chứng từ có giới hạn', () => {
+    expect(lines[0]).toBe('begin;')
+    expect(lines.at(-1)).toBe('commit;')
+    expect(count(sql, 'begin;')).toBe(1)
+    expect(count(sql, 'commit;')).toBe(1)
+    expect(sql).toMatch(/do \$guard\$\s+begin\s+if to_regclass\('public\.payouts'\) is not null then\s+raise exception 'Dừng: đã chạy rồi/)
+    const at = DEPLOY_MIGRATIONS.map((name) => sql.indexOf(`-- ===== supabase/migrations/${name} =====`))
+    expect(DEPLOY_MIGRATIONS).toEqual(['0006_payouts.sql', '0007_demo_flag.sql', '0008_legacy_paid.sql'])
+    expect(sql.indexOf('$guard$')).toBeLessThan(at[0])
+    expect(at).toEqual([...at].sort((a, b) => a - b))
+    for (const name of DEPLOY_MIGRATIONS) expect(sql).toContain(MIGRATIONS.find((m) => m.name === name)!.sql.trimEnd())
+    for (const old of ['0001_schema.sql', '0005_product_details.sql']) expect(sql).not.toContain(`migrations/${old}`)
+    const bucket = sql.indexOf("values ('payout-proofs', 'payout-proofs', false, 5242880, array['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])")
+    expect(bucket).toBeGreaterThan(at[2])
+    expect(bucket).toBeLessThan(sql.lastIndexOf('commit;'))
+  })
+
+  test('thiếu migration → lỗi', () => {
+    expect(() => buildDeploySql(MIGRATIONS.filter((m) => m.name !== '0008_legacy_paid.sql'))).toThrow(/0008_legacy_paid/)
+  })
+})
+
+describe('file sinh sẵn khớp với generator (chạy npm run data:gen khi lệch)', () => {
+  const seed = buildSeedSql(cats, prods, IMAGES)
+  test.each([
+    ['seed.sql', () => seed],
+    ['data-update-production.sql', () => buildProductionUpdateSql(cats, prods, IMAGES)],
+    ['setup-production.sql', () => buildSetupSql(MIGRATIONS, seed)],
+    ['deploy-payouts-production.sql', () => buildDeploySql(MIGRATIONS)],
+  ])('%s', (name, build) => {
+    expect(generated(name)).toBe(build())
   })
 })

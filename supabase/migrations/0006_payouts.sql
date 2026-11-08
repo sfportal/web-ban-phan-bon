@@ -157,18 +157,19 @@ end
 $$;
 
 -- Đánh dấu đã chuyển -------------------------------------------------------------------
--- requested|approved → paid. Đã paid: không làm gì (bấm hai lần). rejected → invalid_state.
+-- requested|approved → paid, trả true. Đã paid: không làm gì, trả false (bấm hai lần / hai admin
+-- cùng lúc — Server Action gỡ chứng từ vừa tải lên). rejected → invalid_state.
 -- p_date: ngày chuyển, không được sau hôm nay (giờ VN).
 create function public.mark_payout_paid(
   p_payout_id uuid, p_actor uuid, p_ref text, p_date date, p_proof_path text
-) returns void
+) returns boolean
 language plpgsql set search_path = public as $$
 declare
   v_status text;
 begin
   select status into v_status from public.payouts where id = p_payout_id for update;
   if not found then raise exception 'payout_not_found'; end if;
-  if v_status = 'paid' then return; end if;
+  if v_status = 'paid' then return false; end if;
   if v_status not in ('requested', 'approved') then raise exception 'invalid_state'; end if;
   if coalesce(btrim(p_ref), '') = '' then raise exception 'ref_required'; end if;
   if p_date is null or p_date > (now() at time zone 'Asia/Ho_Chi_Minh')::date then
@@ -180,6 +181,7 @@ begin
     proof_path = nullif(btrim(p_proof_path), ''), paid_by = p_actor, paid_at = now(),
     decided_by = coalesce(decided_by, p_actor), decided_at = coalesce(decided_at, now())
   where id = p_payout_id;
+  return true;
 end
 $$;
 

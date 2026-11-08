@@ -1,9 +1,9 @@
 -- Cài đặt CSDL cho Supabase bản thật: chạy MỘT LẦN trong SQL Editor của dự án mới (trống).
--- Gồm migrations 0001–0007, dữ liệu (nhóm, sản phẩm, bậc đối tác, tỷ lệ, cài đặt), bucket ảnh
+-- Gồm migrations 0001–0008, dữ liệu (nhóm, sản phẩm, bậc đối tác, tỷ lệ, cài đặt), bucket ảnh
 -- 'products' (công khai) và bucket chứng từ chi trả 'payout-proofs' (riêng tư).
 -- Sinh tự động bởi scripts/gen-seed.ts từ data/*.json (npm run data:gen) — không sửa tay.
--- Dự án đang chạy (đã có dữ liệu cũ): chạy từng migration còn thiếu (0005, 0006, 0007, …) và
--- data-update-production.sql (một lần, xem README); bucket 'payout-proofs' tạo bằng câu lệnh cuối file này.
+-- Dự án đang chạy (đã có dữ liệu cũ): KHÔNG chạy file này — dùng deploy-payouts-production.sql
+-- (ví hoa hồng 0006–0008 + bucket 'payout-proofs'), xem README.
 begin;
 
 -- ===== supabase/migrations/0001_schema.sql =====
@@ -759,18 +759,19 @@ end
 $$;
 
 -- Đánh dấu đã chuyển -------------------------------------------------------------------
--- requested|approved → paid. Đã paid: không làm gì (bấm hai lần). rejected → invalid_state.
+-- requested|approved → paid, trả true. Đã paid: không làm gì, trả false (bấm hai lần / hai admin
+-- cùng lúc — Server Action gỡ chứng từ vừa tải lên). rejected → invalid_state.
 -- p_date: ngày chuyển, không được sau hôm nay (giờ VN).
 create function public.mark_payout_paid(
   p_payout_id uuid, p_actor uuid, p_ref text, p_date date, p_proof_path text
-) returns void
+) returns boolean
 language plpgsql set search_path = public as $$
 declare
   v_status text;
 begin
   select status into v_status from public.payouts where id = p_payout_id for update;
   if not found then raise exception 'payout_not_found'; end if;
-  if v_status = 'paid' then return; end if;
+  if v_status = 'paid' then return false; end if;
   if v_status not in ('requested', 'approved') then raise exception 'invalid_state'; end if;
   if coalesce(btrim(p_ref), '') = '' then raise exception 'ref_required'; end if;
   if p_date is null or p_date > (now() at time zone 'Asia/Ho_Chi_Minh')::date then
@@ -782,6 +783,7 @@ begin
     proof_path = nullif(btrim(p_proof_path), ''), paid_by = p_actor, paid_at = now(),
     decided_by = coalesce(decided_by, p_actor), decided_at = coalesce(decided_at, now())
   where id = p_payout_id;
+  return true;
 end
 $$;
 
@@ -1024,6 +1026,33 @@ grant execute on function
   public.claim_farmer(uuid, text, text, text),
   public.delete_demo_data()
 to service_role;
+
+-- ===== supabase/migrations/0008_legacy_paid.sql =====
+-- Hoa hồng đã chi theo cách cũ (commission_entries.status = 'paid', trước khi có ví) được ghi
+-- thành MỘT khoản chi `paid` mỗi đối tác (source 'legacy', mã GD 'LEGACY-TRUOC-VI') để ví không
+-- tính lại số tiền đó là khả dụng. Chạy lại không thêm gì: bỏ qua đối tác đã có khoản legacy.
+-- Sau khi chạy, đừng dùng nút "Đã chi" cũ nữa (bản mới đã bỏ nút này).
+
+alter table public.payouts drop constraint if exists payouts_source_check;
+alter table public.payouts add constraint payouts_source_check
+  check (source in ('request', 'batch', 'legacy'));
+
+insert into public.payouts (
+  partner_id, amount, source, status, transfer_ref, transferred_on,
+  requested_at, decided_at, paid_at, is_demo
+)
+select ce.partner_id, sum(ce.amount), 'legacy', 'paid', 'LEGACY-TRUOC-VI',
+  (coalesce(max(ce.paid_at), now()) at time zone 'Asia/Ho_Chi_Minh')::date,
+  coalesce(max(ce.paid_at), now()), coalesce(max(ce.paid_at), now()), coalesce(max(ce.paid_at), now()),
+  bool_or(pt.is_demo)
+from public.commission_entries ce
+join public.partners pt on pt.id = ce.partner_id
+where ce.status = 'paid'
+  and not exists (
+    select 1 from public.payouts p where p.partner_id = ce.partner_id and p.source = 'legacy'
+  )
+group by ce.partner_id
+having sum(ce.amount) > 0;
 
 -- ===== supabase/seed.sql =====
 -- Sinh tự động bởi scripts/gen-seed.ts từ data/*.json (npm run data:gen) — không sửa tay.

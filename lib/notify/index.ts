@@ -10,6 +10,15 @@ export type NewOrderNotice = {
   subtotal: number
   /** Tiền đại lý phải trả (đơn đại lý); null với đơn khác. */
   partnerPayable: number | null
+  /** Đơn thử (orders.is_demo) → thêm "[THỬ]" vào đầu tiêu đề và nội dung. */
+  isDemo?: boolean
+}
+
+const DEMO_PREFIX = '[THỬ] '
+
+/** Đánh dấu thông báo của dữ liệu thử để cửa hàng không nhầm với hoạt động thật. */
+function markDemo(m: { subject: string; text: string }, isDemo: boolean | undefined) {
+  return isDemo ? { subject: DEMO_PREFIX + m.subject, text: DEMO_PREFIX + m.text } : m
 }
 
 const DEFAULT_FROM = 'onboarding@resend.dev'
@@ -88,7 +97,7 @@ async function send({ subject, text }: { subject: string; text: string }): Promi
 
 /** Báo đơn mới cho cửa hàng (xem send). Gọi trong `after()` để không chặn phản hồi gửi đơn. */
 export async function notifyNewOrder(order: NewOrderNotice): Promise<void> {
-  await send(message(order))
+  await send(markDemo(message(order), order.isDemo))
 }
 
 export type PayoutRequestNotice = {
@@ -98,12 +107,14 @@ export type PayoutRequestNotice = {
   bankName: string | null
   bankAccount: string | null
   bankHolder: string | null
+  /** Đối tác thử → thêm "[THỬ]". */
+  isDemo?: boolean
 }
 
 /** Báo admin có yêu cầu rút tiền mới (cùng kênh với đơn mới). Gọi trong `after()`. */
 export async function notifyPayoutRequest(p: PayoutRequestNotice): Promise<void> {
   const amount = formatVnd(p.amount)
-  await send({
+  await send(markDemo({
     subject: `[${SITE_NAME}] Yêu cầu rút tiền ${amount}`,
     text: [
       `Yêu cầu rút tiền ${amount}`,
@@ -111,5 +122,5 @@ export async function notifyPayoutRequest(p: PayoutRequestNotice): Promise<void>
       `Ngân hàng: ${[p.bankName, p.bankAccount, p.bankHolder].filter(Boolean).join(' · ') || '—'}`,
       'Duyệt tại trang Chi trả của admin.',
     ].join('\n'),
-  })
+  }, p.isDemo))
 }

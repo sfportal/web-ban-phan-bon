@@ -2,6 +2,7 @@
 //   supabase/seed.sql                    (local/test: db:reset chạy sau migrations)
 //   supabase/data-update-production.sql  (bản thật đang chạy: chuyển dữ liệu mẫu MỘT LẦN — xem README)
 //   supabase/setup-production.sql        (dự án Supabase mới: migrations + seed + bucket ảnh)
+//   supabase/deploy-payouts-production.sql (bản thật đã chạy 0001–0005: thêm ví/chi trả 0006–0008 + bucket chứng từ)
 // Thứ tự trong SQL theo đúng thứ tự file JSON để diff dễ đọc.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -267,8 +268,8 @@ export function buildSetupSql(migrations: { name: string; sql: string }[], seedS
 -- Gồm migrations ${first}–${last}, dữ liệu (nhóm, sản phẩm, bậc đối tác, tỷ lệ, cài đặt), bucket ảnh
 -- 'products' (công khai) và bucket chứng từ chi trả 'payout-proofs' (riêng tư).
 ${GENERATED}
--- Dự án đang chạy (đã có dữ liệu cũ): chạy từng migration còn thiếu (0005, 0006, 0007, …) và
--- data-update-production.sql (một lần, xem README); bucket 'payout-proofs' tạo bằng câu lệnh cuối file này.
+-- Dự án đang chạy (đã có dữ liệu cũ): KHÔNG chạy file này — dùng deploy-payouts-production.sql
+-- (ví hoa hồng 0006–0008 + bucket 'payout-proofs'), xem README.
 begin;
 
 ${parts.join('\n')}
@@ -277,6 +278,44 @@ ${seedSql.trimEnd()}
 
 ${BUCKET_SQL}
 ${PROOF_BUCKET_SQL}
+commit;
+`
+}
+
+// ---------------------------------------------------------------------------
+// deploy-payouts-production.sql
+
+/** Migration của tính năng ví hoa hồng / chi trả / dữ liệu thử, chạy trên bản thật đã có 0001–0005. */
+export const DEPLOY_MIGRATIONS = ['0006_payouts.sql', '0007_demo_flag.sql', '0008_legacy_paid.sql'] as const
+
+export function buildDeploySql(migrations: { name: string; sql: string }[]): string {
+  const parts = DEPLOY_MIGRATIONS.map((name) => {
+    const m = migrations.find((x) => x.name === name)
+    if (!m) throw new Error(`Thiếu supabase/migrations/${name}`)
+    return `-- ===== supabase/migrations/${name} =====\n${m.sql.trimEnd()}\n`
+  })
+  return `begin;
+${GENERATED}
+-- Cập nhật bản thật (đã chạy 0001–0005) lên ví hoa hồng, chi trả có chứng từ, dữ liệu thử.
+-- Dán TOÀN BỘ file vào SQL Editor của Supabase, bấm Run — một giao dịch: lỗi ở đâu thì không đổi gì.
+-- Thứ tự: chạy file này → kiểm tra (README) → rồi mới push main lên Vercel.
+-- Trước khi chạy, xem hoa hồng đã chi theo cách cũ (sẽ thành khoản chi "Đã chi trước khi có ví"):
+--   select count(*), coalesce(sum(amount), 0) from public.commission_entries where status = 'paid';
+-- Từ lúc chạy tới khi bản mới lên Vercel, đừng bấm nút "Đã chi" cũ ở trang Hoa hồng.
+
+-- 0. Chỉ chạy một lần: đã có bảng payouts thì dừng.
+do $guard$
+begin
+  if to_regclass('public.payouts') is not null then
+    raise exception 'Dừng: đã chạy rồi (đã có bảng public.payouts). Không cần chạy lại file này.';
+  end if;
+end
+$guard$;
+
+${parts.join('\n')}
+-- ===== bucket chứng từ chi trả (riêng tư) =====
+${PROOF_BUCKET_SQL}
+
 commit;
 `
 }
@@ -300,7 +339,8 @@ function main() {
   writeFileSync(path.join(dir, 'seed.sql'), seed)
   writeFileSync(path.join(dir, 'data-update-production.sql'), buildProductionUpdateSql(categories, products, IMAGES))
   writeFileSync(path.join(dir, 'setup-production.sql'), buildSetupSql(migrations, seed))
-  console.log(`[data] ${categories.length} nhóm, ${products.length} sản phẩm → seed.sql, data-update-production.sql, setup-production.sql`)
+  writeFileSync(path.join(dir, 'deploy-payouts-production.sql'), buildDeploySql(migrations))
+  console.log(`[data] ${categories.length} nhóm, ${products.length} sản phẩm → seed.sql, data-update-production.sql, setup-production.sql, deploy-payouts-production.sql`)
 }
 
 // Chỉ chạy khi gọi trực tiếp (tsx scripts/gen-seed.ts), không chạy khi test import.

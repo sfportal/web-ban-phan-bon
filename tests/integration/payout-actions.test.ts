@@ -149,6 +149,13 @@ describe('requestPayout', () => {
     expect(body.text).toContain('1.500.000 đ')
     expect(body.text).toContain(p.phone)
     expect(body.text).toContain(BANK.bank_account)
+    expect(body.text).not.toContain('[THỬ]')
+
+    // Đối tác thử: thông báo có "[THỬ]".
+    await adminClient().from('partners').update({ is_demo: true }).eq('id', p.partnerId).throwOnError()
+    expect(await asUser(p, () => requestPayout({ amount: '100.000' }))).toMatchObject({ ok: true })
+    await vi.waitFor(() => expect(telegram).toHaveBeenCalledTimes(2))
+    expect(JSON.parse(telegram.mock.calls[1][1].body).text).toMatch(/^\[THỬ\] Yêu cầu rút tiền 100\.000 đ/)
     await adminClient().from('settings').delete().eq('key', 'telegram_chat_id').throwOnError()
   })
 
@@ -321,6 +328,22 @@ describe('markPayoutPaid', () => {
     expect(await asUser(admin, () => markPayoutPaid({ id, ref: 'GD1', date: vnDate(), proof: file }))).toEqual({ ok: true })
     expect(uploadProof).toHaveBeenCalledWith(p.partnerId, id, file)
     expect((await payout(id)).proof_path).toBe(`${p.partnerId}/${id}.png`)
+  })
+
+  test('admin khác đánh dấu trong lúc tải chứng từ → gỡ file vừa tải, invalid_state', async () => {
+    const p = await ctv()
+    await earn(p, 300000)
+    const id = await requested(p, 100000)
+    vi.mocked(uploadProof).mockImplementationOnce(async (partnerId, payoutId) => {
+      await adminClient().rpc('mark_payout_paid', {
+        p_payout_id: payoutId, p_actor: null, p_ref: 'GD-KHAC', p_date: vnDate(), p_proof_path: null,
+      }).throwOnError()
+      return `${partnerId}/${payoutId}.png`
+    })
+    vi.mocked(removeProof).mockResolvedValueOnce(undefined)
+    expect(await asUser(admin, () => markPayoutPaid({ id, ref: 'GD1', date: vnDate(), proof: png() }))).toEqual({ error: 'invalid_state' })
+    expect(removeProof).toHaveBeenCalledWith(`${p.partnerId}/${id}.png`)
+    expect(await payout(id)).toMatchObject({ status: 'paid', transfer_ref: 'GD-KHAC', proof_path: null })
   })
 
   test('file sai loại / quá lớn / upload lỗi → báo lỗi, không đổi trạng thái', async () => {

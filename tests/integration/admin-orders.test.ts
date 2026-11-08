@@ -1,10 +1,8 @@
 import ExcelJS from 'exceljs'
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
-import { commissionReport, exportCommissions, markCommissionsPaid } from '@/lib/admin/commission-actions'
 import { transferFarmer } from '@/lib/admin/farmers-actions'
 import { bulkSetStatus, dashboardStats, exportOrders, setOrderStatus, staffEditOrder } from '@/lib/admin/orders-actions'
 import { exportAll, saveSettings } from '@/lib/admin/settings-actions'
-import { vnPeriod } from '@/lib/format'
 import {
   adminClient, asUser, createOrderRpc, createPartner, createStaff, insertFarmerFor, orderInStatus,
   redirectTarget, resetData, sampleLine, toStatus, type TestPartner, type TestUser,
@@ -217,64 +215,6 @@ describe('staffEditOrder', () => {
     expect((await asUser(staff, () => staffEditOrder(id, [editLine({ farmerId: retailFarmer, qty: 4 })], true))).status).toBe('ok')
     const { data: order } = await adminClient().from('orders').select('total_qty, commission_expected, partner_payable').eq('id', id).single().throwOnError()
     expect(order).toEqual({ total_qty: 4, commission_expected: 0, partner_payable: null })
-  })
-})
-
-describe('hoa hồng', () => {
-  const period = vnPeriod(new Date())
-
-  test('commissionReport: net = earned + reversed (đơn paid rồi returned → net 0)', async () => {
-    const returned = await ctvOrder(30000)
-    await walk(returned, 'confirmed', 'shipping', 'delivered', 'paid', 'returned')
-    const kept = await ctvOrder(12000)
-    await walk(kept, 'confirmed', 'shipping', 'delivered', 'paid')
-
-    const report = await asUser(staff, () => commissionReport(period))
-    const row = report.find((r) => r.partnerId === ctv.partnerId)!
-    expect(row).toEqual({
-      partnerId: ctv.partnerId, partnerName: `Đối tác ${ctv.phone}`, phone: ctv.phone,
-      earned: 42000, reversed: -30000, net: 12000, pending: 12000, paid: 0,
-    })
-    expect(report.find((r) => r.partnerId === dealer.partnerId)).toBeUndefined()
-    expect(await asUser(staff, () => commissionReport('2020-01'))).toEqual([])
-    await expect(asUser(staff, () => commissionReport('2026-13'))).rejects.toThrow()
-  })
-
-  test('markCommissionsPaid: chỉ đổi dòng pending, giữ paid_at của dòng đã chi', async () => {
-    const id = await ctvOrder(5000)
-    await walk(id, 'confirmed', 'shipping', 'delivered', 'paid')
-    const id2 = await ctvOrder(7000)
-    await walk(id2, 'confirmed', 'shipping', 'delivered', 'paid')
-    const entry = async (orderId: string) => (await adminClient().from('commission_entries').select('id, status, paid_at').eq('order_id', orderId).single().throwOnError()).data
-    const e1 = await entry(id)
-    const e2 = await entry(id2)
-
-    expect(await asUser(admin, () => markCommissionsPaid([e1.id]))).toEqual({ updated: 1 })
-    const paid1 = await entry(id)
-    expect(paid1.status).toBe('paid')
-    expect(paid1.paid_at).not.toBeNull()
-
-    expect(await asUser(admin, () => markCommissionsPaid([e1.id, e2.id, 'khong-phai-uuid']))).toEqual({ updated: 1 })
-    expect((await entry(id)).paid_at).toBe(paid1.paid_at)
-    expect((await entry(id2)).status).toBe('paid')
-  })
-
-  test('nhân viên thường gọi markCommissionsPaid / exportCommissions bị chặn', async () => {
-    const id = await ctvOrder(4000)
-    await walk(id, 'confirmed', 'shipping', 'delivered', 'paid')
-    const { data: e } = await adminClient().from('commission_entries').select('id').eq('order_id', id).single().throwOnError()
-    expect(await redirectTarget(asUser(staff, () => markCommissionsPaid([e.id])))).toBe('/')
-    expect(await redirectTarget(asUser(staff, () => exportCommissions(period)))).toBe('/')
-    const { data: after } = await adminClient().from('commission_entries').select('status').eq('id', e.id).single().throwOnError()
-    expect(after.status).toBe('pending')
-  })
-
-  test('exportCommissions: file có hàng của CTV khớp báo cáo', async () => {
-    const report = await asUser(admin, () => commissionReport(period))
-    const ws = (await load(await asUser(admin, () => exportCommissions(period)))).worksheets[0]
-    const row = report.find((r) => r.partnerId === ctv.partnerId)!
-    const found = ws.getRows(2, ws.rowCount - 1)!.find((r) => r.getCell(2).value === ctv.phone)!
-    expect([3, 4, 5, 6, 7].map((c) => found.getCell(c).value)).toEqual([row.earned, row.reversed, row.net, row.pending, row.paid])
   })
 })
 

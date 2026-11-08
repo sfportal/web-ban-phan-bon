@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { Badge, Button, buttonClass, Card, EmptyState, SectionHeader } from '@/components/ui'
 import { formatDate, formatVnd } from '@/lib/format'
 import { markBatchPaid } from '@/lib/payouts/admin-actions'
-import { BATCH_KIND_LABEL } from '@/lib/payouts/validate'
+import { BATCH_KIND_LABEL, PAYOUT_ERROR_MESSAGES, type PayoutErrorCode } from '@/lib/payouts/validate'
 import type { AdminPayoutRow, BatchRow } from '@/lib/payouts/wallet'
 import { BatchCreate } from './BatchCreate'
 import { MarkPaidDialog } from './MarkPaidDialog'
@@ -93,7 +93,8 @@ function BatchDetail({ batch, payouts, canAct }: { batch: BatchRow; payouts: Adm
           onSubmit={async (v) => {
             const res = await markBatchPaid(batch.id, { ref: v.ref, date: v.date })
             if (res.ok === 0 && res.failed.length > 0) {
-              return `Không đánh dấu được khoản nào (${res.failed.length} lỗi). Kiểm tra mã giao dịch và ngày.`
+              const code = res.failed[0].code as PayoutErrorCode
+              return `Không đánh dấu được khoản nào (${res.failed.length} lỗi): ${PAYOUT_ERROR_MESSAGES[code] ?? 'Lỗi không xác định, thử lại sau.'}`
             }
             setResult(
               res.failed.length

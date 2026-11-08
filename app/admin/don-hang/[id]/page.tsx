@@ -7,7 +7,7 @@ import { OrderStatusActions } from '@/components/admin/OrderStatusActions'
 import { StaffOrderEdit, type StaffEditLine } from '@/components/admin/StaffOrderEdit'
 import { Money } from '@/components/Money'
 import { StatusBadge } from '@/components/StatusBadge'
-import { Badge, Button, Card } from '@/components/ui'
+import { Button, Card } from '@/components/ui'
 import { requireStaff } from '@/lib/auth/guards'
 import { getActivePromos, getProductsByIds } from '@/lib/catalog/queries'
 import { formatDateTime } from '@/lib/format'
@@ -33,7 +33,7 @@ async function OrderDetail({ params }: Pick<PageProps<'/admin/don-hang/[id]'>, '
   const [{ data: lines }, { data: log }, { data: entries }] = await Promise.all([
     db.from('order_lines').select('*, farmers(name, phone)').eq('order_id', order.id).order('id').throwOnError(),
     db.from('order_status_log').select('id, to_status, changed_at, note').eq('order_id', order.id).order('changed_at').order('id').throwOnError(),
-    db.from('commission_entries').select('id, kind, amount, period, status').eq('order_id', order.id).order('created_at').throwOnError(),
+    db.from('commission_entries').select('id, kind, amount, period').eq('order_id', order.id).order('created_at').throwOnError(),
   ])
   const productIds = [...new Set(lines.map((l) => l.product_id))]
   const [products, promos] = await Promise.all([getProductsByIds(db, productIds), getActivePromos(db)])
@@ -152,10 +152,7 @@ async function OrderDetail({ params }: Pick<PageProps<'/admin/don-hang/[id]'>, '
               <ul className="flex flex-col divide-y divide-stone-100">
                 {entries.map((e) => (
                   <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                    <span className="flex flex-col gap-1">
-                      <span>{e.kind === 'earn' ? 'Ghi nhận' : 'Hoàn (trả hàng)'}, kỳ {e.period}</span>
-                      {e.status === 'paid' ? <Badge tone="green">Đã chi</Badge> : <Badge tone="yellow">Chờ chi</Badge>}
-                    </span>
+                    <span>{e.kind === 'earn' ? 'Ghi nhận' : 'Hoàn (trả hàng)'}, kỳ {e.period}</span>
                     <Money value={Number(e.amount)} className="font-semibold tabular-nums" />
                   </li>
                 ))}

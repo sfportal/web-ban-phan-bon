@@ -1,5 +1,4 @@
 import type { NextRequest } from 'next/server'
-import { exportCommissions } from '@/lib/admin/commission-actions'
 import { exportOrders } from '@/lib/admin/orders-actions'
 import { exportAll } from '@/lib/admin/settings-actions'
 import { requireStaff } from '@/lib/auth/guards'
@@ -9,7 +8,6 @@ import { PAYOUT_STATUS_LABEL, type PayoutStatus } from '@/lib/payouts/validate'
 
 // Tải file Excel. Một route cho mọi loại xuất (?loai=…):
 //   don-hang&tu=YYYY-MM-DD&den=YYYY-MM-DD  — dòng đơn theo ngày tạo (nhân viên / kế toán)
-//   hoa-hong&ky=YYYY-MM                    — hoa hồng theo kỳ (admin)
 //   tat-ca                                 — sao lưu mỗi bảng một sheet (admin)
 //   chi-tra-yeu-cau[&trang-thai=requested|approved|paid|rejected] — yêu cầu rút (admin)
 //   chi-tra-dot&dot=<uuid>                 — các khoản của một đợt chi (admin)
@@ -41,11 +39,6 @@ export async function GET(request: NextRequest) {
       if (!from || !to || to <= from) return bad('Khoảng ngày không hợp lệ')
       if (+to - +from > 366 * 86400_000) return bad('Tối đa 366 ngày mỗi lần xuất')
       return xlsx(await exportOrders(from, to), `don-hang_${vnDateInput(from)}_${den}.xlsx`)
-    }
-    case 'hoa-hong': {
-      const ky = q.get('ky') ?? ''
-      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(ky)) return bad('Kỳ không hợp lệ')
-      return xlsx(await exportCommissions(ky), `hoa-hong_${ky}.xlsx`)
     }
     case 'tat-ca':
       return xlsx(await exportAll(), `du-lieu_${vnDateInput(new Date())}.xlsx`)

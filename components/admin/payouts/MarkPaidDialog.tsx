@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from 'react'
 import { Button, Field, Input } from '@/components/ui'
-import { MAX_PROOF_BYTES, PROOF_TYPES, vnToday } from '@/lib/payouts/validate'
+import { MAX_PROOF_BYTES, PAYOUT_ERROR_MESSAGES, PROOF_TYPES, vnToday } from '@/lib/payouts/validate'
 
 export type MarkPaidValues = { ref: string; date: string; proof: File | null }
 
@@ -36,7 +36,8 @@ export function MarkPaidDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    if (proof && proof.size > MAX_PROOF_BYTES) return setError('Chứng từ tối đa 5MB')
+    if (proof && !(PROOF_TYPES as readonly string[]).includes(proof.type)) return setError(PAYOUT_ERROR_MESSAGES.bad_type)
+    if (proof && proof.size > MAX_PROOF_BYTES) return setError(PAYOUT_ERROR_MESSAGES.too_large)
     setBusy(true)
     try {
       const err = await onSubmit({ ref: ref.trim(), date, proof })

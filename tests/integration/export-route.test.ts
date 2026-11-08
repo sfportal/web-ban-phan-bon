@@ -19,9 +19,8 @@ describe('GET /admin/xuat-du-lieu', () => {
     expect(await redirectTarget(asUser(null, () => GET(req('loai=don-hang&tu=2026-11-01&den=2026-11-07'))))).toBe('/dang-nhap')
   })
 
-  test('nhân viên thường không xuất được toàn bộ dữ liệu / hoa hồng', async () => {
+  test('nhân viên thường không xuất được toàn bộ dữ liệu', async () => {
     expect(await redirectTarget(asUser(staff, () => GET(req('loai=tat-ca'))))).toBe('/')
-    expect(await redirectTarget(asUser(staff, () => GET(req('loai=hoa-hong&ky=2026-11'))))).toBe('/')
   })
 
   test('nhân viên thường xuất đơn hàng → 200 xlsx tải xuống', async () => {
@@ -34,13 +33,12 @@ describe('GET /admin/xuat-du-lieu', () => {
     expect(wb.worksheets[0].getRow(1).getCell(1).value).toBe('Mã đơn')
   })
 
-  test('admin xuất hoa hồng và toàn bộ dữ liệu', async () => {
-    expect((await asUser(admin, () => GET(req('loai=hoa-hong&ky=2026-11')))).status).toBe(200)
+  test('admin xuất toàn bộ dữ liệu', async () => {
     expect((await asUser(admin, () => GET(req('loai=tat-ca')))).status).toBe(200)
   })
 
   test('tham số sai → 400', async () => {
-    for (const q of ['loai=chi-tra-yeu-cau&trang-thai=toString', 'loai=khac', '', 'loai=don-hang&tu=2026-11-07&den=2026-11-01', 'loai=don-hang&tu=2026-02-31&den=2026-03-01', 'loai=hoa-hong&ky=2026-13']) {
+    for (const q of ['loai=chi-tra-yeu-cau&trang-thai=toString', 'loai=khac', '', 'loai=don-hang&tu=2026-11-07&den=2026-11-01', 'loai=don-hang&tu=2026-02-31&den=2026-03-01']) {
       expect((await asUser(admin, () => GET(req(q)))).status, q).toBe(400)
     }
   })

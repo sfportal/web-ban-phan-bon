@@ -13,6 +13,7 @@ export type SettingsValues = {
   notify_email: string
   telegram_chat_id: string
   zalo_link: string
+  min_payout: string
 }
 
 const input = 'h-11 rounded-xl border border-stone-300 bg-white px-3 text-base'
@@ -71,6 +72,12 @@ export function SettingsForm({ values, defaultStoreName }: { values: SettingsVal
           <legend className="mb-2 text-xl font-bold tracking-tight">Thông báo đơn mới</legend>
           <Field name="notify_email" label="Email nhận thông báo" type="email" value={values.notify_email} />
           <Field name="telegram_chat_id" label="Telegram chat id" value={values.telegram_chat_id} placeholder="-100…" hint="Bot token đặt ở biến môi trường TELEGRAM_BOT_TOKEN." />
+        </fieldset>
+      </div>
+      <div className="rounded-2xl border border-stone-200 bg-white p-5">
+        <fieldset className="flex min-w-0 flex-col gap-3">
+          <legend className="mb-2 text-xl font-bold tracking-tight">Chi trả hoa hồng</legend>
+          <Field name="min_payout" label="Mức rút tối thiểu" value={values.min_payout} hint="Số tiền (đ) CTV phải có tối thiểu để rút hoặc được đưa vào đợt chi. Mặc định 100.000." />
         </fieldset>
       </div>
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'text-primary' : 'rounded-xl bg-red-50 p-3 text-red-800'}>{msg.text}</p>}

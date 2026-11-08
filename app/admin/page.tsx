@@ -52,7 +52,7 @@ async function Overview() {
           href="/admin/hoa-hong"
           label="Hoa hồng chờ chi"
           value={formatVnd(stats.pendingCommission)}
-          hint="Mọi kỳ, đã trừ dòng âm do trả hàng"
+          hint="Hoa hồng đã ghi nhận trừ các khoản đã chuyển, đã trừ dòng âm do trả hàng"
           icon={<Wallet className="size-5" />}
         />
       </ul>

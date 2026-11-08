@@ -4,6 +4,7 @@ import { SettingsForm, type SettingsValues } from '@/components/admin/SettingsFo
 import { Download } from 'lucide-react'
 import { buttonClass, Card } from '@/components/ui'
 import { requireStaff } from '@/lib/auth/guards'
+import { DEFAULT_MIN_PAYOUT } from '@/lib/payouts/validate'
 import { SITE_NAME } from '@/lib/site'
 import { adminClient } from '@/lib/supabase/admin'
 
@@ -26,6 +27,7 @@ async function Settings() {
     notify_email: str(get('notify_email')),
     telegram_chat_id: str(get('telegram_chat_id')),
     zalo_link: str(get('zalo_link')),
+    min_payout: str(get('min_payout') ?? DEFAULT_MIN_PAYOUT),
   }
   return (
     <>

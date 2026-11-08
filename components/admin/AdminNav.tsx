@@ -15,7 +15,7 @@ const GROUPS: { title?: string; items: Item[] }[] = [
     items: [
       { href: '/admin', label: 'Tổng quan', icon: LayoutDashboard },
       { href: '/admin/don-hang', label: 'Đơn hàng', icon: ClipboardList },
-      { href: '/admin/hoa-hong', label: 'Hoa hồng', icon: Wallet },
+      { href: '/admin/hoa-hong', label: 'Chi trả', icon: Wallet },
     ],
   },
   {

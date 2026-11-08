@@ -145,7 +145,7 @@ export type DashboardStats = {
    * đơn đại lý tính `partner_payable`, đơn khác tính `subtotal`.
    */
   monthRevenue: number
-  /** Tổng hoa hồng `pending` (đã trừ dòng âm do trả hàng). */
+  /** Hoa hồng chưa chi: tổng mọi dòng hoa hồng (đã trừ dòng âm do trả hàng) trừ các khoản đã chuyển (ví). */
   pendingCommission: number
 }
 
@@ -154,14 +154,16 @@ export async function dashboardStats(): Promise<DashboardStats> {
   const db = adminClient()
   const now = new Date()
   const monthStart = vnDateStart(`${vnPeriod(now)}-01`)!.toISOString()
-  const [today, delivered, paidLog, pending] = await Promise.all([
+  const [today, delivered, paidLog, earned, paidOut] = await Promise.all([
     db.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', vnDayStart(0, now).toISOString()).throwOnError(),
     db.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'delivered').throwOnError(),
     fetchAll((from, to) =>
       db.from('order_status_log').select('id, order_id, orders(subtotal, partner_payable, status)')
         .eq('to_status', 'paid').gte('changed_at', monthStart).order('id').range(from, to).throwOnError()),
     fetchAll((from, to) =>
-      db.from('commission_entries').select('id, amount').eq('status', 'pending').order('id').range(from, to).throwOnError()),
+      db.from('commission_entries').select('id, amount').order('id').range(from, to).throwOnError()),
+    fetchAll((from, to) =>
+      db.from('payouts').select('id, amount').eq('status', 'paid').order('id').range(from, to).throwOnError()),
   ])
   const seen = new Set<string>()
   let monthRevenue = 0
@@ -174,7 +176,7 @@ export async function dashboardStats(): Promise<DashboardStats> {
     newToday: today.count ?? 0,
     awaitingPayment: delivered.count ?? 0,
     monthRevenue,
-    pendingCommission: pending.reduce((s, e) => s + Number(e.amount), 0),
+    pendingCommission: earned.reduce((s, e) => s + Number(e.amount), 0) - paidOut.reduce((s, e) => s + Number(e.amount), 0),
   }
 }
 

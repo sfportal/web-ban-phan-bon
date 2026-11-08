@@ -92,7 +92,8 @@ export async function markPayoutPaid(form: Fields): Promise<{ ok: true } | { err
 
   const { data: row } = await adminClient().from('payouts').select('partner_id, status').eq('id', id).maybeSingle().throwOnError()
   if (!row) return { error: 'not_found' }
-  if (row.status === 'paid') return { ok: true }
+  // Đã chuyển rồi: gửi lại không kèm file thì coi như xong; kèm file thì báo để admin biết chứng từ không được gắn.
+  if (row.status === 'paid') return proof ? { error: 'invalid_state' } : { ok: true }
   if (row.status !== 'requested' && row.status !== 'approved') return { error: 'invalid_state' }
 
   let path: string | null = null
@@ -104,7 +105,13 @@ export async function markPayoutPaid(form: Fields): Promise<{ ok: true } | { err
       return { error: 'upload_failed' }
     }
   }
-  const failed = await markPaidRpc(id, userId, input, path)
+  let failed: Awaited<ReturnType<typeof markPaidRpc>>
+  try {
+    failed = await markPaidRpc(id, userId, input, path)
+  } catch (e) {
+    if (path) await removeProof(path)
+    throw e
+  }
   if (failed) {
     if (path) await removeProof(path)
     return { error: failed }
@@ -125,9 +132,14 @@ export async function markBatchPaid(
   let ok = 0
   const failed: { id: string; code: string }[] = []
   for (const r of rows) {
-    const code = await markPaidRpc(r.id, userId, checked, null)
-    if (code) failed.push({ id: r.id, code })
-    else ok++
+    try {
+      const code = await markPaidRpc(r.id, userId, checked, null)
+      if (code) failed.push({ id: r.id, code })
+      else ok++
+    } catch (e) {
+      console.error('markBatchPaid', r.id, e)
+      failed.push({ id: r.id, code: 'error' })
+    }
   }
   return { ok, failed }
 }

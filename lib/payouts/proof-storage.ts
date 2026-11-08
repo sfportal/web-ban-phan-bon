@@ -22,7 +22,7 @@ export async function uploadProof(partnerId: string, payoutId: string, file: Fil
   const storage = adminClient().storage
   const path = proofPath(partnerId, payoutId, file.type)
   const body = new Uint8Array(await file.arrayBuffer())
-  const put = () => storage.from(PROOF_BUCKET).upload(path, body, { contentType: file.type, upsert: true })
+  const put = () => storage.from(PROOF_BUCKET).upload(path, body, { contentType: file.type, upsert: false })
 
   let { error } = await put()
   if (error && /bucket not found/i.test(error.message)) {

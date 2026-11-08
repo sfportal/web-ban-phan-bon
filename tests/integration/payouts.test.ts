@@ -137,6 +137,15 @@ describe('request_payout', () => {
     expect((await request(p, 150000)).error).toBeNull()
   })
 
+  test('đối tác không active (chờ duyệt / bị khóa) → not_active', async () => {
+    for (const status of ['pending', 'locked'] as const) {
+      const p = await createPartner({ kind: 'commission', status })
+      await setBank(p)
+      await earn(p, 200000)
+      expect((await request(p, 100000)).error?.message).toBe('not_active')
+    }
+  })
+
   test('đại lý → not_commission', async () => {
     const d = await createPartner({ kind: 'wholesale' })
     await setBank(d)
@@ -164,7 +173,8 @@ describe('request_payout', () => {
     await earn(p, 120000)
     expect(await wallet(p)).toEqual({ earned: 120000, pending_out: 0, paid: 150000, available: -30000 })
     expect((await request(p, 100000)).error?.message).toBe('insufficient_balance')
-    expect(await batch()).toMatchObject({ created: 0, skipped_no_bank: 0, skipped_below_min: 1 })
+    // Số dư ≤ 0 không tính vào nhóm bỏ qua nào.
+    expect(await batch()).toMatchObject({ created: 0, skipped_no_bank: 0, skipped_below_min: 0 })
   })
 })
 
@@ -278,8 +288,18 @@ describe('create_payout_batch', () => {
     })
     expect(await wallet(ok)).toEqual({ earned: 230000, pending_out: 150000, paid: 0, available: 80000 })
 
-    // Chạy lại cùng cutoff: phần đã nằm trong khoản chờ chi được trừ → không tạo trùng.
-    expect(await batch('2026-10-31')).toMatchObject({ created: 0, skipped_below_min: 2 })
+    // Chạy lại cùng cutoff: phần đã nằm trong khoản chờ chi được trừ → không tạo trùng
+    // (ok còn 0 → không đếm; noBank vẫn đủ mức → thiếu ngân hàng; below vẫn dưới mức).
+    expect(await batch('2026-10-31')).toMatchObject({ created: 0, skipped_no_bank: 1, skipped_below_min: 1 })
+  })
+
+  test('thiếu ngân hàng chỉ đếm khi số tiền ≥ mức tối thiểu; dưới mức → below_min; 0 → không đếm', async () => {
+    const noBankBelow = await ctv({ bank: false })
+    await ctv({ bank: false }) // không có hoa hồng
+    const noBankOk = await ctv({ bank: false })
+    await earn(noBankBelow, 50000, '2026-10-15T10:00:00+07:00')
+    await earn(noBankOk, 100000, '2026-10-15T10:00:00+07:00')
+    expect(await batch('2026-10-31')).toMatchObject({ created: 0, skipped_no_bank: 1, skipped_below_min: 1 })
   })
 
   test('trừ khoản chờ chi/đã chi; không vượt available khi trả hàng sau cutoff', async () => {

@@ -1,11 +1,13 @@
 'use server'
 // Server Actions cài đặt cửa hàng và sao lưu (xuất toàn bộ dữ liệu). Chỉ admin.
 // Dạng giá trị lưu khớp với nơi đọc: store_name/notify_email/telegram_chat_id/zalo_link là
-// chuỗi; bank_info là object { bank, account, holder } (trang đặt hàng thành công).
+// chuỗi; bank_info là object { bank, account, holder } (trang đặt hàng thành công);
+// min_payout là số (VNĐ, mức rút tối thiểu của ví hoa hồng) — ô vắng/trống thì giữ nguyên.
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { requireStaff } from '@/lib/auth/guards'
 import { ALL_DATA_SHEETS, buildTablesWorkbook } from '@/lib/excel/export'
+import { parseAmount } from '@/lib/payouts/validate'
 import { adminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
 import { fetchAll } from '@/lib/supabase/fetch-all'
@@ -31,6 +33,9 @@ export async function saveSettings(form: FormData): Promise<SettingsResult> {
   const parsed = schema.safeParse(raw)
   if (!parsed.success) return { status: 'invalid', message: parsed.error.issues[0].message }
   const v = parsed.data
+  const rawMin = form.get('min_payout')
+  const minPayout = typeof rawMin === 'string' && rawMin.trim() !== '' ? parseAmount(rawMin) : undefined
+  if (minPayout === null) return { status: 'invalid', message: 'Mức rút tối thiểu phải là số tiền nguyên dương' }
 
   const db = adminClient()
   // Giữ các khóa bank_info khác mà form không có (vd `branch`); khóa form và tên cũ tương đương thì thay.
@@ -51,6 +56,7 @@ export async function saveSettings(form: FormData): Promise<SettingsResult> {
     notify_email: v.notify_email || null,
     telegram_chat_id: v.telegram_chat_id || null,
     zalo_link: v.zalo_link || null,
+    ...(minPayout !== undefined ? { min_payout: minPayout } : {}),
   }
   const upserts = Object.entries(values).filter(([, x]) => x !== null).map(([key, value]) => ({ key, value: value! }))
   const deletes = Object.entries(values).filter(([, x]) => x === null).map(([key]) => key)

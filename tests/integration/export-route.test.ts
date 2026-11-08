@@ -40,7 +40,7 @@ describe('GET /admin/xuat-du-lieu', () => {
   })
 
   test('tham số sai → 400', async () => {
-    for (const q of ['loai=khac', '', 'loai=don-hang&tu=2026-11-07&den=2026-11-01', 'loai=don-hang&tu=2026-02-31&den=2026-03-01', 'loai=hoa-hong&ky=2026-13']) {
+    for (const q of ['loai=chi-tra-yeu-cau&trang-thai=toString', 'loai=khac', '', 'loai=don-hang&tu=2026-11-07&den=2026-11-01', 'loai=don-hang&tu=2026-02-31&den=2026-03-01', 'loai=hoa-hong&ky=2026-13']) {
       expect((await asUser(admin, () => GET(req(q)))).status, q).toBe(400)
     }
   })

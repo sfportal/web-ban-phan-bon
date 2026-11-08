@@ -106,6 +106,7 @@ begin
   -- Khóa ví: yêu cầu song song của cùng đối tác xếp hàng tại đây.
   select * into v_partner from public.partners where id = p_partner_id for update;
   if not found then raise exception 'partner_not_found'; end if;
+  if v_partner.status <> 'active' then raise exception 'not_active'; end if;
   select kind into v_kind from public.partner_tiers where id = v_partner.tier_id;
   if v_kind is distinct from 'commission' then raise exception 'not_commission'; end if;
   if coalesce(btrim(v_partner.bank_name), '') = '' or coalesce(btrim(v_partner.bank_account), '') = ''
@@ -183,9 +184,11 @@ end
 $$;
 
 -- Đợt chi --------------------------------------------------------------------------------
--- Mỗi CTV active (bậc commission) có is_demo = p_is_demo, khóa theo thứ tự id:
---   thiếu ngân hàng → skipped_no_bank;
---   amount = least(earned tới cutoff − pending_out − paid, available) < p_min → skipped_below_min;
+-- Mỗi CTV active (bậc commission) có is_demo = p_is_demo, khóa theo thứ tự id;
+-- amount = least(earned tới cutoff − pending_out − paid, available):
+--   amount ≤ 0 → bỏ qua, không đếm (không có gì để chi);
+--   0 < amount < p_min → skipped_below_min (kể cả thiếu ngân hàng);
+--   amount ≥ p_min nhưng thiếu ngân hàng → skipped_no_bank;
 --   còn lại → payout approved thuộc đợt (snapshot ngân hàng).
 -- "Tới cutoff" = commission_entries.created_at < 00:00 giờ VN ngày sau cutoff_date.
 -- least(…, available) để reversal sau cutoff không làm chi vượt số dư thật.
@@ -219,19 +222,19 @@ begin
     order by p.id
     for update of p
   loop
-    if coalesce(btrim(v_p.bank_name), '') = '' or coalesce(btrim(v_p.bank_account), '') = ''
-      or coalesce(btrim(v_p.bank_holder), '') = '' then
-      v_no_bank := v_no_bank + 1;
-      continue;
-    end if;
-
     select coalesce(sum(amount), 0)::bigint into v_earned
     from public.commission_entries where partner_id = v_p.id and created_at < v_until;
     select * into v_w from public.partner_wallet(v_p.id);
     v_amount := least(v_earned - v_w.pending_out - v_w.paid, v_w.available);
 
-    if v_amount <= 0 or v_amount < coalesce(p_min, 0) then
+    if v_amount <= 0 then continue; end if;
+    if v_amount < coalesce(p_min, 0) then
       v_below := v_below + 1;
+      continue;
+    end if;
+    if coalesce(btrim(v_p.bank_name), '') = '' or coalesce(btrim(v_p.bank_account), '') = ''
+      or coalesce(btrim(v_p.bank_holder), '') = '' then
+      v_no_bank := v_no_bank + 1;
       continue;
     end if;
 

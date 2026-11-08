@@ -15,7 +15,7 @@ vi.mock('@/lib/supabase/admin', () => ({
   }),
 }))
 
-const { notifyNewOrder } = await import('@/lib/notify')
+const { notifyNewOrder, notifyPayoutRequest } = await import('@/lib/notify')
 
 const order = { code: 'DH2611-0001', source: 'partner' as const, partnerName: 'Anh Ba', subtotal: 1170000, partnerPayable: null }
 const fetchMock = vi.fn()
@@ -106,5 +106,44 @@ describe('notifyNewOrder', () => {
     await expect(notifyNewOrder({ ...order, source: 'retail', partnerName: null })).resolves.toBeUndefined()
     expect(err).toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('notifyPayoutRequest', () => {
+  const notice = {
+    partnerName: 'CTV An', phone: '0905000001', amount: 1500000,
+    bankName: 'Vietcombank', bankAccount: '0123456789', bankHolder: 'NGUYEN VAN AN',
+  }
+
+  test('thiếu cấu hình thì không gọi fetch', async () => {
+    await notifyPayoutRequest(notice)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test('gửi email + Telegram: tên, SĐT, số tiền, ngân hàng', async () => {
+    vi.stubEnv('RESEND_API_KEY', 're_test')
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', '123:abc')
+    settingsRows = [
+      { key: 'notify_email', value: 'chu@cuahang.vn' },
+      { key: 'telegram_chat_id', value: '-100123' },
+    ]
+    await notifyPayoutRequest(notice)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const email = JSON.parse(fetchMock.mock.calls.find(([u]) => String(u).includes('resend'))![1].body)
+    expect(email.subject).toContain('Yêu cầu rút tiền')
+    expect(email.subject).toContain('1.500.000 đ')
+    const tg = JSON.parse(fetchMock.mock.calls.find(([u]) => String(u).includes('telegram'))![1].body)
+    for (const part of ['CTV An', '0905000001', '1.500.000 đ', 'Vietcombank', '0123456789', 'NGUYEN VAN AN']) {
+      expect(tg.text).toContain(part)
+    }
+  })
+
+  test('fetch lỗi không throw', async () => {
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', '123:abc')
+    settingsRows = [{ key: 'telegram_chat_id', value: '-100123' }]
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    fetchMock.mockRejectedValueOnce(new Error('network down'))
+    await expect(notifyPayoutRequest(notice)).resolves.toBeUndefined()
+    expect(err).toHaveBeenCalled()
   })
 })

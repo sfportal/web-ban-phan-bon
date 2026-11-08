@@ -1,10 +1,12 @@
 // Dựng file Excel xuất dữ liệu (thuần, không phụ thuộc DB): hoa hồng theo kỳ, dòng đơn hàng
-// cho kế toán, và sao lưu mỗi bảng một sheet. Tiêu đề cột tiếng Việt, cột tiền `#,##0`.
+// cho kế toán, chi trả (yêu cầu rút, đợt chi, số dư) và sao lưu mỗi bảng một sheet. Tiêu đề cột tiếng Việt, cột tiền `#,##0`.
 import ExcelJS from 'exceljs'
 import { STATUS_LABEL, type OrderStatus } from '@/lib/orders/status'
+import { BATCH_KIND_LABEL, PAYOUT_STATUS_LABEL, type BatchKind, type PayoutStatus } from '@/lib/payouts/validate'
 
 const MONEY = '#,##0'
 const DATE_TIME = 'dd/mm/yyyy hh:mm'
+const DATE = 'dd/mm/yyyy'
 const VN_OFFSET_MS = 7 * 3600_000
 
 /**
@@ -94,6 +96,106 @@ export async function buildOrdersWorkbook(rows: OrderExportRow[]): Promise<Buffe
   }
   ws.getColumn(2).numFmt = DATE_TIME
   for (const c of [9, 10, 12, 13]) ws.getColumn(c).numFmt = MONEY
+  return toBuffer(wb)
+}
+
+// Chi trả ---------------------------------------------------------------------------------
+
+export type PayoutExportRow = {
+  partnerName: string
+  phone: string
+  amount: number
+  status: PayoutStatus
+  bankName: string | null
+  bankAccount: string | null
+  bankHolder: string | null
+  requestedAt: string
+  transferRef: string | null
+  /** yyyy-mm-dd */
+  transferredOn: string | null
+  rejectReason: string | null
+}
+
+export const PAYOUT_HEADERS = [
+  'CTV', 'SĐT', 'Số tiền', 'Trạng thái', 'Ngân hàng', 'Số tài khoản', 'Chủ tài khoản', 'Ngày yêu cầu',
+  'Mã giao dịch', 'Ngày chuyển', 'Lý do từ chối',
+] as const
+const PAYOUT_WIDTHS = [26, 13, 14, 12, 20, 18, 24, 17, 16, 12, 28]
+
+/** Ngày yyyy-mm-dd → Date 0h UTC (ô ngày thuần, không lệch múi giờ). */
+function dateOnly(ymd: string): Date {
+  return new Date(`${ymd}T00:00:00Z`)
+}
+
+function formatYmd(ymd: string): string {
+  const [y, m, d] = ymd.split('-')
+  return `${d}/${m}/${y}`
+}
+
+/** Thêm bảng khoản chi (tiêu đề ở hàng `ws.rowCount + 1`) và hàng "Tổng". */
+function addPayoutTable(ws: ExcelJS.Worksheet, rows: PayoutExportRow[]): void {
+  ws.addRow([...PAYOUT_HEADERS]).font = { bold: true }
+  let total = 0
+  for (const r of rows) {
+    ws.addRow([
+      r.partnerName, r.phone, r.amount, PAYOUT_STATUS_LABEL[r.status], r.bankName ?? '', r.bankAccount ?? '',
+      r.bankHolder ?? '', vnWallClock(r.requestedAt), r.transferRef ?? '',
+      r.transferredOn ? dateOnly(r.transferredOn) : '', r.rejectReason ?? '',
+    ])
+    total += r.amount
+  }
+  ws.addRow(['Tổng', '', total]).font = { bold: true }
+  ws.columns = PAYOUT_WIDTHS.map((width) => ({ width }))
+  ws.getColumn(3).numFmt = MONEY
+  ws.getColumn(8).numFmt = DATE_TIME
+  ws.getColumn(10).numFmt = DATE
+}
+
+/** Danh sách yêu cầu rút (mỗi khoản một hàng) và hàng "Tổng". */
+export async function buildPayoutRequestsSheet(rows: PayoutExportRow[]): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Yêu cầu rút')
+  addPayoutTable(ws, rows)
+  ws.views = [{ state: 'frozen', ySplit: 1 }]
+  return toBuffer(wb)
+}
+
+/** Một đợt chi: hàng 1 mô tả đợt, rồi bảng khoản chi và hàng "Tổng". */
+export async function buildPayoutBatchSheet(
+  batch: { kind: BatchKind; cutoffDate: string; note: string | null },
+  rows: PayoutExportRow[],
+): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet(`Đợt chi ${batch.cutoffDate}`)
+  const title = `Đợt chi ${BATCH_KIND_LABEL[batch.kind]}, chốt ${formatYmd(batch.cutoffDate)}${batch.note ? ` — ${batch.note}` : ''}`
+  ws.addRow([title]).font = { bold: true }
+  addPayoutTable(ws, rows)
+  ws.views = [{ state: 'frozen', ySplit: 2 }]
+  return toBuffer(wb)
+}
+
+export type BalanceExportRow = {
+  partnerName: string
+  phone: string
+  earned: number
+  pendingOut: number
+  paid: number
+  available: number
+}
+
+export const BALANCE_HEADERS = ['CTV', 'SĐT', 'Đã kiếm được', 'Đang chờ chi', 'Đã nhận', 'Số dư khả dụng'] as const
+
+/** Số dư ví mỗi CTV và hàng "Tổng". */
+export async function buildBalancesSheet(rows: BalanceExportRow[]): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook()
+  const ws = sheet(wb, 'Số dư đối tác', BALANCE_HEADERS, [30, 14, 15, 15, 15, 16])
+  const total = { earned: 0, pendingOut: 0, paid: 0, available: 0 }
+  for (const r of rows) {
+    ws.addRow([r.partnerName, r.phone, r.earned, r.pendingOut, r.paid, r.available])
+    for (const k of Object.keys(total) as (keyof typeof total)[]) total[k] += r[k]
+  }
+  ws.addRow(['Tổng', '', total.earned, total.pendingOut, total.paid, total.available]).font = { bold: true }
+  for (let c = 3; c <= 6; c++) ws.getColumn(c).numFmt = MONEY
   return toBuffer(wb)
 }
 

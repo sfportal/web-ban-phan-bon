@@ -727,7 +727,7 @@ export type Database = {
         Returns: { earned: number; pending_out: number; paid: number; available: number }[]
       }
       request_payout: {
-        // not_commission | missing_bank | below_min | insufficient_balance | partner_not_found
+        // not_active | not_commission | missing_bank | below_min | insufficient_balance | partner_not_found
         Args: { p_partner_id: string; p_amount: number; p_min: number }
         Returns: string
       }

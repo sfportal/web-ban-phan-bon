@@ -44,18 +44,17 @@ async function post(label: string, url: string, init: RequestInit): Promise<void
 }
 
 /**
- * Báo đơn mới cho cửa hàng: email (Resend) nếu có `RESEND_API_KEY` + setting `notify_email`,
- * Telegram nếu có `TELEGRAM_BOT_TOKEN` + setting `telegram_chat_id`. Không bao giờ throw:
- * mọi lỗi chỉ `console.error`. Gọi trong `after()` để không chặn phản hồi gửi đơn.
+ * Gửi `subject`/`text` cho cửa hàng: email (Resend) nếu có `RESEND_API_KEY` + setting
+ * `notify_email`, Telegram nếu có `TELEGRAM_BOT_TOKEN` + setting `telegram_chat_id`.
+ * Không bao giờ throw: mọi lỗi chỉ `console.error`.
  */
-export async function notifyNewOrder(order: NewOrderNotice): Promise<void> {
+async function send({ subject, text }: { subject: string; text: string }): Promise<void> {
   try {
     const resendKey = process.env.RESEND_API_KEY?.trim()
     const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim()
     if (!resendKey && !botToken) return
 
     const settings = await loadSettings(['notify_email', 'telegram_chat_id'])
-    const { subject, text } = message(order)
     const jobs: Promise<void>[] = []
 
     if (resendKey && settings.notify_email) {
@@ -85,4 +84,32 @@ export async function notifyNewOrder(order: NewOrderNotice): Promise<void> {
   } catch (e) {
     console.error('notify: lỗi', e)
   }
+}
+
+/** Báo đơn mới cho cửa hàng (xem send). Gọi trong `after()` để không chặn phản hồi gửi đơn. */
+export async function notifyNewOrder(order: NewOrderNotice): Promise<void> {
+  await send(message(order))
+}
+
+export type PayoutRequestNotice = {
+  partnerName: string
+  phone: string
+  amount: number
+  bankName: string | null
+  bankAccount: string | null
+  bankHolder: string | null
+}
+
+/** Báo admin có yêu cầu rút tiền mới (cùng kênh với đơn mới). Gọi trong `after()`. */
+export async function notifyPayoutRequest(p: PayoutRequestNotice): Promise<void> {
+  const amount = formatVnd(p.amount)
+  await send({
+    subject: `[${SITE_NAME}] Yêu cầu rút tiền ${amount}`,
+    text: [
+      `Yêu cầu rút tiền ${amount}`,
+      `CTV: ${p.partnerName} (${p.phone})`,
+      `Ngân hàng: ${[p.bankName, p.bankAccount, p.bankHolder].filter(Boolean).join(' · ') || '—'}`,
+      'Duyệt tại trang Chi trả của admin.',
+    ].join('\n'),
+  })
 }

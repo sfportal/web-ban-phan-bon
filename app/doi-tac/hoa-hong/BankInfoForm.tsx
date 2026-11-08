@@ -13,19 +13,23 @@ export type BankValue = { bankName: string; bankAccount: string; bankHolder: str
 export function BankInfoForm({ initial }: { initial: BankValue | null }) {
   const router = useRouter()
   const [editing, setEditing] = useState(!initial)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ field: 'account' | 'other'; message: string } | null>(null)
   const [pending, start] = useTransition()
 
   function submit(form: FormData) {
     setError(null)
     start(async () => {
-      const res = await saveBankInfo(form)
-      if ('error' in res) {
-        setError(PAYOUT_ERROR_MESSAGES[res.error])
-        return
+      try {
+        const res = await saveBankInfo(form)
+        if ('error' in res) {
+          setError({ field: res.error === 'invalid_account' ? 'account' : 'other', message: PAYOUT_ERROR_MESSAGES[res.error] })
+          return
+        }
+        setEditing(false)
+        router.refresh()
+      } catch {
+        setError({ field: 'other', message: 'Không lưu được thông tin ngân hàng. Thử lại sau.' })
       }
-      setEditing(false)
-      router.refresh()
     })
   }
 
@@ -52,15 +56,15 @@ export function BankInfoForm({ initial }: { initial: BankValue | null }) {
         <Field label="Ngân hàng">
           <Input name="bank_name" defaultValue={initial?.bankName} maxLength={120} autoComplete="off" required />
         </Field>
-        <Field label="Số tài khoản">
+        <Field label="Số tài khoản" error={error?.field === 'account' ? error.message : null}>
           <Input name="bank_account" defaultValue={initial?.bankAccount} inputMode="numeric" autoComplete="off" required />
         </Field>
-        <Field label="Chủ tài khoản" error={error}>
+        <Field label="Chủ tài khoản" error={error?.field === 'other' ? error.message : null}>
           <Input name="bank_holder" defaultValue={initial?.bankHolder} maxLength={120} autoComplete="off" required />
         </Field>
         <div className="flex gap-2">
           <Button type="submit" disabled={pending} className="flex-1">Lưu thông tin ngân hàng</Button>
-          {initial && <Button variant="secondary" onClick={() => setEditing(false)}>Hủy</Button>}
+          {initial && <Button variant="secondary" onClick={() => { setEditing(false); setError(null) }}>Hủy</Button>}
         </div>
       </form>
     </Card>

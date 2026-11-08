@@ -4,7 +4,7 @@ import { category, productsIn } from '../support/dataset'
 
 const npk = productsIn('npk')[0]
 const RATE = category('npk').rates.ctv
-const QTY = 6 // đủ để hoa hồng vượt mức rút tối thiểu 100.000
+const QTY = 12 // hoa hồng ≥ 300.000: sau khi rút 100.000 số dư vẫn ≥ mức tối thiểu
 
 /** CTV mới → admin duyệt → lên đơn NPK → admin đẩy đơn tới "Đã thu đủ tiền". Trả về hoa hồng và mã đơn. */
 async function partnerWithCommission(page: Page, browser: Browser) {
@@ -44,7 +44,7 @@ const stat = (page: Page, label: string) => page.getByText(label, { exact: true 
 
 test('CTV khai ngân hàng, rút 100.000 → "Chờ duyệt", số dư giảm; rút vượt số dư bị từ chối', async ({ page, browser }) => {
   const { commission, code } = await partnerWithCommission(page, browser)
-  expect(commission).toBeGreaterThanOrEqual(100_000)
+  expect(commission).toBeGreaterThanOrEqual(300_000)
 
   await page.getByRole('navigation', { name: 'Khu đối tác' }).getByRole('link', { name: 'Ví' }).click()
   await expect(page.getByRole('heading', { name: 'Ví hoa hồng' })).toBeVisible()
@@ -73,6 +73,4 @@ test('CTV khai ngân hàng, rút 100.000 → "Chờ duyệt", số dư giảm; r
   await page.getByRole('button', { name: 'Gửi yêu cầu rút' }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'Số dư không đủ' })).toBeVisible()
   await expect(stat(page, 'Số dư khả dụng')).toContainText(vnd(commission - 100_000))
-
-  if (page.viewportSize()?.width === 390) await page.screenshot({ path: '/tmp/screens/payout-wallet-390.png', fullPage: true }).catch(() => {})
 })

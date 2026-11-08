@@ -25,6 +25,7 @@ function ProofButton({ id }: { id: string }) {
         tab?.close()
         setError(PAYOUT_ERROR_MESSAGES[res.error])
       } else if (tab) {
+        tab.opener = null
         tab.location.href = res.url
       } else {
         window.location.href = res.url

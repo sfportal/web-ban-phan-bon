@@ -13,7 +13,7 @@ import { BankInfoForm } from './BankInfoForm'
 import { PayoutList } from './PayoutList'
 import { WithdrawForm } from './WithdrawForm'
 
-export const metadata = { title: `Ví hoa hồng — ${SITE_NAME}` }
+export const metadata = { title: `Ví / Tiết kiệm — ${SITE_NAME}` }
 
 /** "2026-11" → "Tháng 11/2026" */
 function periodLabel(p: string): string {

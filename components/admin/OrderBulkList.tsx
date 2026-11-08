@@ -7,7 +7,7 @@ import { useState, useTransition } from 'react'
 import { TableCard, tbody, td, th, thead } from '@/components/admin/table'
 import { Money } from '@/components/Money'
 import { StatusBadge } from '@/components/StatusBadge'
-import { Button, Card, EmptyState, Select } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Select } from '@/components/ui'
 import { bulkSetStatus } from '@/lib/admin/orders-actions'
 import { formatDateTime } from '@/lib/format'
 import { STATUS_LABEL, TRANSITIONS, type OrderStatus } from '@/lib/orders/status'
@@ -21,6 +21,7 @@ export type OrderRow = {
   phone: string | null
   /** Số tiền thu: giá đại lý nếu là đơn đại lý, ngược lại tổng giá bán. */
   total: number
+  isDemo?: boolean
 }
 
 const ERROR_LABEL: Record<string, string> = {
@@ -139,6 +140,7 @@ export function OrderBulkList({ rows }: { rows: OrderRow[] }) {
                 </td>
                 <td className={`${td} whitespace-nowrap`}>
                   <Link href={`/admin/don-hang/${r.id}`} className="font-semibold text-primary underline-offset-4 hover:underline">{r.code}</Link>
+                  {r.isDemo && <Badge tone="gray" className="ml-2">Thử</Badge>}
                 </td>
                 <td className={`${td} whitespace-nowrap text-stone-700`}>{formatDateTime(r.createdAt)}</td>
                 <td className={td}>

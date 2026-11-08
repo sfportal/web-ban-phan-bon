@@ -2,7 +2,7 @@ import { ChevronRight, Search, Sprout } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { AdminMain, Loading, PageHeader } from '@/components/admin/AdminPage'
-import { Button, Card, EmptyState, Input } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Input } from '@/components/ui'
 import { requireStaff } from '@/lib/auth/guards'
 import { SITE_NAME } from '@/lib/site'
 import { adminClient } from '@/lib/supabase/admin'
@@ -16,7 +16,7 @@ async function Farmers({ searchParams }: Pick<PageProps<'/admin/nong-dan'>, 'sea
   const raw = (await searchParams).q
   // Bỏ ký tự đặc biệt của cú pháp bộ lọc PostgREST (, ( ) % * \) khỏi từ khóa.
   const q = (typeof raw === 'string' ? raw : '').replace(/[,()%*\\]/g, ' ').trim().slice(0, 60)
-  let query = adminClient().from('farmers').select('id, name, phone, address, partners(name)')
+  let query = adminClient().from('farmers').select('id, name, phone, address, is_demo, partners(name)')
   if (q) query = query.or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
   const { data: farmers } = await query.order('created_at', { ascending: false }).order('id').limit(LIMIT + 1).throwOnError()
   return (
@@ -44,7 +44,10 @@ async function Farmers({ searchParams }: Pick<PageProps<'/admin/nong-dan'>, 'sea
                 <li key={f.id} className="even:bg-stone-50/70">
                   <Link href={`/admin/nong-dan/${f.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-primary-soft/50">
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <b className="font-semibold">{f.name}</b>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <b className="font-semibold">{f.name}</b>
+                        {f.is_demo && <Badge tone="gray">Thử</Badge>}
+                      </span>
                       <span className="text-stone-700">{f.phone}{f.address && ` · ${f.address}`}</span>
                       <span className="text-sm text-stone-600">CTV: {f.partners?.name ?? 'Chưa có chủ'}</span>
                     </span>

@@ -31,7 +31,7 @@ async function Orders({ searchParams }: Pick<PageProps<'/admin/don-hang'>, 'sear
 
   const db = adminClient()
   let q = db.from('orders')
-    .select('id, code, created_at, source, status, subtotal, partner_payable, retail_name, retail_phone, partners(name, phone)')
+    .select('id, code, created_at, source, status, subtotal, partner_payable, retail_name, retail_phone, is_demo, partners(name, phone)')
   if (status) q = q.eq('status', status)
   if (nguon) q = q.eq('source', SOURCES[nguon])
   if (ctv) q = q.eq('partner_id', ctv)
@@ -52,6 +52,7 @@ async function Orders({ searchParams }: Pick<PageProps<'/admin/don-hang'>, 'sear
       : `${o.partners?.name ?? ''}${o.partner_payable !== null ? ' (đại lý)' : ''}`,
     phone: o.source === 'retail' ? o.retail_phone : o.partners?.phone ?? null,
     total: Number(o.partner_payable ?? o.subtotal),
+    isDemo: o.is_demo,
   }))
 
   return (

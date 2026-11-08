@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  ClipboardList, Layers, LayoutDashboard, Menu, Package, Percent, Settings, Sprout, Tags, Users, Wallet, X, type LucideIcon,
+  ClipboardList, Layers, LayoutDashboard, FlaskConical, Menu, Package, Percent, Settings, Sprout, Tags, Users, Wallet, X, type LucideIcon,
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -34,7 +34,12 @@ const GROUPS: { title?: string; items: Item[] }[] = [
       { href: '/admin/nong-dan', label: 'Nông dân', icon: Sprout },
     ],
   },
-  { items: [{ href: '/admin/cai-dat', label: 'Cài đặt', icon: Settings, adminOnly: true }] },
+  {
+    items: [
+      { href: '/admin/cai-dat', label: 'Cài đặt', icon: Settings, adminOnly: true },
+      { href: '/admin/du-lieu-thu', label: 'Dữ liệu thử', icon: FlaskConical, adminOnly: true },
+    ],
+  },
 ]
 
 /**

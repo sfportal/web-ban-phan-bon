@@ -1,8 +1,8 @@
 -- Cài đặt CSDL cho Supabase bản thật: chạy MỘT LẦN trong SQL Editor của dự án mới (trống).
--- Gồm migrations 0001–0006, dữ liệu (nhóm, sản phẩm, bậc đối tác, tỷ lệ, cài đặt), bucket ảnh
+-- Gồm migrations 0001–0007, dữ liệu (nhóm, sản phẩm, bậc đối tác, tỷ lệ, cài đặt), bucket ảnh
 -- 'products' (công khai) và bucket chứng từ chi trả 'payout-proofs' (riêng tư).
 -- Sinh tự động bởi scripts/gen-seed.ts từ data/*.json (npm run data:gen) — không sửa tay.
--- Dự án đang chạy (đã có dữ liệu cũ): chạy từng migration còn thiếu (0005, 0006, …) và
+-- Dự án đang chạy (đã có dữ liệu cũ): chạy từng migration còn thiếu (0005, 0006, 0007, …) và
 -- data-update-production.sql (một lần, xem README); bucket 'payout-proofs' tạo bằng câu lệnh cuối file này.
 begin;
 
@@ -708,6 +708,7 @@ begin
   -- Khóa ví: yêu cầu song song của cùng đối tác xếp hàng tại đây.
   select * into v_partner from public.partners where id = p_partner_id for update;
   if not found then raise exception 'partner_not_found'; end if;
+  if v_partner.status <> 'active' then raise exception 'not_active'; end if;
   select kind into v_kind from public.partner_tiers where id = v_partner.tier_id;
   if v_kind is distinct from 'commission' then raise exception 'not_commission'; end if;
   if coalesce(btrim(v_partner.bank_name), '') = '' or coalesce(btrim(v_partner.bank_account), '') = ''
@@ -785,9 +786,11 @@ end
 $$;
 
 -- Đợt chi --------------------------------------------------------------------------------
--- Mỗi CTV active (bậc commission) có is_demo = p_is_demo, khóa theo thứ tự id:
---   thiếu ngân hàng → skipped_no_bank;
---   amount = least(earned tới cutoff − pending_out − paid, available) < p_min → skipped_below_min;
+-- Mỗi CTV active (bậc commission) có is_demo = p_is_demo, khóa theo thứ tự id;
+-- amount = least(earned tới cutoff − pending_out − paid, available):
+--   amount ≤ 0 → bỏ qua, không đếm (không có gì để chi);
+--   0 < amount < p_min → skipped_below_min (kể cả thiếu ngân hàng);
+--   amount ≥ p_min nhưng thiếu ngân hàng → skipped_no_bank;
 --   còn lại → payout approved thuộc đợt (snapshot ngân hàng).
 -- "Tới cutoff" = commission_entries.created_at < 00:00 giờ VN ngày sau cutoff_date.
 -- least(…, available) để reversal sau cutoff không làm chi vượt số dư thật.
@@ -821,19 +824,19 @@ begin
     order by p.id
     for update of p
   loop
-    if coalesce(btrim(v_p.bank_name), '') = '' or coalesce(btrim(v_p.bank_account), '') = ''
-      or coalesce(btrim(v_p.bank_holder), '') = '' then
-      v_no_bank := v_no_bank + 1;
-      continue;
-    end if;
-
     select coalesce(sum(amount), 0)::bigint into v_earned
     from public.commission_entries where partner_id = v_p.id and created_at < v_until;
     select * into v_w from public.partner_wallet(v_p.id);
     v_amount := least(v_earned - v_w.pending_out - v_w.paid, v_w.available);
 
-    if v_amount <= 0 or v_amount < coalesce(p_min, 0) then
+    if v_amount <= 0 then continue; end if;
+    if v_amount < coalesce(p_min, 0) then
       v_below := v_below + 1;
+      continue;
+    end if;
+    if coalesce(btrim(v_p.bank_name), '') = '' or coalesce(btrim(v_p.bank_account), '') = ''
+      or coalesce(btrim(v_p.bank_holder), '') = '' then
+      v_no_bank := v_no_bank + 1;
       continue;
     end if;
 
@@ -869,6 +872,70 @@ grant execute on function
   public.mark_payout_paid(uuid, uuid, text, date, text),
   public.create_payout_batch(text, date, bigint, uuid, text, boolean)
 to service_role;
+
+-- ===== supabase/migrations/0007_demo_flag.sql =====
+-- Dữ liệu đặt thử: create_order nhận thêm khóa p_order->>'is_demo' (mặc định false) để đánh dấu
+-- đơn thử. Giữ nguyên chữ ký (jsonb, jsonb) nên quyền execute của 0003 còn hiệu lực; ghi lại
+-- revoke/grant tường minh cho chắc. Không đổi logic tạo đơn khác.
+
+create or replace function public.create_order(p_order jsonb, p_lines jsonb)
+returns table (id uuid, code text)
+language plpgsql set search_path = public as $$
+#variable_conflict use_column
+declare
+  v_key uuid := nullif(p_order->>'client_key', '')::uuid;
+  v_period text := to_char(now() at time zone 'Asia/Ho_Chi_Minh', 'YYMM');
+  v_seq int;
+  v_id uuid;
+  v_code text;
+begin
+  if v_key is not null then
+    -- Hai lần gửi cùng client_key xếp hàng tại đây; lần sau thấy đơn đã commit
+    -- và trả về đơn cũ mà không tiêu số thứ tự.
+    perform pg_advisory_xact_lock(hashtextextended('create_order:' || v_key::text, 0));
+    return query select o.id, o.code from public.orders o where o.client_key = v_key;
+    if found then return; end if;
+  end if;
+
+  insert into public.order_counters as c (period, last) values (v_period, 1)
+  on conflict (period) do update set last = c.last + 1
+  returning c.last into v_seq;
+  v_code := 'DH' || v_period || '-' || lpad(v_seq::text, 4, '0');
+
+  insert into public.orders (
+    code, client_key, client_ip, source, partner_id, delivery_address, payment_method,
+    retail_name, retail_phone, retail_address, note, subtotal, partner_payable,
+    commission_expected, total_qty, is_demo
+  ) values (
+    v_code, v_key, p_order->>'client_ip', p_order->>'source',
+    nullif(p_order->>'partner_id', '')::uuid, p_order->>'delivery_address',
+    coalesce(p_order->>'payment_method', 'cod'),
+    p_order->>'retail_name', p_order->>'retail_phone', p_order->>'retail_address', p_order->>'note',
+    coalesce((p_order->>'subtotal')::bigint, 0), (p_order->>'partner_payable')::bigint,
+    coalesce((p_order->>'commission_expected')::bigint, 0),
+    coalesce((select sum((l->>'qty')::int) from jsonb_array_elements(p_lines) l), 0),
+    coalesce((p_order->>'is_demo')::boolean, false)
+  )
+  returning orders.id into v_id;
+
+  insert into public.order_lines (
+    order_id, farmer_id, product_id, qty, list_price_snap, sale_price_snap, promotion_id_snap,
+    rate_pct_snap, line_total, line_commission, line_partner_price
+  )
+  select v_id, l.farmer_id, l.product_id, l.qty, l.list_price_snap, l.sale_price_snap,
+    l.promotion_id_snap, coalesce(l.rate_pct_snap, 0), l.line_total,
+    coalesce(l.line_commission, 0), l.line_partner_price
+  from jsonb_populate_recordset(null::public.order_lines, p_lines) l;
+
+  insert into public.order_status_log (order_id, from_status, to_status, changed_by)
+  values (v_id, null, 'new', nullif(p_order->>'actor', '')::uuid);
+
+  return query select v_id, v_code;
+end
+$$;
+
+revoke all on function public.create_order(jsonb, jsonb) from public, anon, authenticated;
+grant execute on function public.create_order(jsonb, jsonb) to service_role;
 
 -- ===== supabase/seed.sql =====
 -- Sinh tự động bởi scripts/gen-seed.ts từ data/*.json (npm run data:gen) — không sửa tay.

@@ -88,7 +88,10 @@ export function PayoutItem({ p, canAct }: { p: AdminPayoutRow; canAct: boolean }
         </div>
         <div className="flex flex-col items-end gap-1">
           <span className="text-lg font-bold tabular-nums text-ink">{formatVnd(p.amount)}</span>
-          <Badge tone={STATUS_TONE[p.status]}>{PAYOUT_STATUS_LABEL[p.status]}</Badge>
+          <span className="flex items-center gap-1.5">
+            {p.isDemo && <Badge tone="gray">Thử</Badge>}
+            <Badge tone={STATUS_TONE[p.status]}>{PAYOUT_STATUS_LABEL[p.status]}</Badge>
+          </span>
         </div>
       </div>
       <p className="break-words text-sm text-stone-700">

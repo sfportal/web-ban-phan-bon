@@ -683,7 +683,7 @@ export type Database = {
       create_order: {
         // p_order: source, partner_id, client_key, client_ip, delivery_address, payment_method,
         // retail_name, retail_phone, retail_address, note, subtotal, partner_payable,
-        // commission_expected, actor (auth user id, tùy chọn). p_lines: mảng dòng theo cột order_lines.
+        // commission_expected, actor (auth user id, tùy chọn), is_demo (boolean, 0007). p_lines: mảng dòng theo cột order_lines.
         Args: { p_order: Json; p_lines: Json }
         Returns: { id: string; code: string }[]
       }

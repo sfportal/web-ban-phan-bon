@@ -22,7 +22,7 @@ async function Partners({ searchParams }: Pick<PageProps<'/admin/doi-tac'>, 'sea
   const tab = (await searchParams).tab === 'cho-duyet' ? 'cho-duyet' : 'tat-ca'
   const db = adminClient()
   const partners = await fetchAll((from, to) =>
-    db.from('partners').select('id, name, phone, region, status, created_at, partner_tiers(name)')
+    db.from('partners').select('id, name, phone, region, status, is_demo, created_at, partner_tiers(name)')
       .order('created_at', { ascending: false }).order('id').range(from, to).throwOnError())
   const pendingCount = partners.filter((p) => p.status === 'pending').length
   const shown = tab === 'cho-duyet' ? partners.filter((p) => p.status === 'pending') : partners
@@ -59,6 +59,7 @@ async function Partners({ searchParams }: Pick<PageProps<'/admin/doi-tac'>, 'sea
                     <span className="flex flex-wrap items-center gap-2">
                       <b className="font-semibold">{p.name}</b>
                       <Badge tone={STATUS_TONE[p.status]}>{STATUS_LABEL[p.status]}</Badge>
+                      {p.is_demo && <Badge tone="gray">Thử</Badge>}
                     </span>
                     <span className="text-stone-700">{p.phone}{p.region && ` · ${p.region}`}</span>
                     <span className="text-sm text-stone-600">{p.partner_tiers?.name ?? 'Chưa có bậc'} · đăng ký {formatDate(p.created_at)}</span>

@@ -267,7 +267,7 @@ export function buildSetupSql(migrations: { name: string; sql: string }[], seedS
 -- Gồm migrations ${first}–${last}, dữ liệu (nhóm, sản phẩm, bậc đối tác, tỷ lệ, cài đặt), bucket ảnh
 -- 'products' (công khai) và bucket chứng từ chi trả 'payout-proofs' (riêng tư).
 ${GENERATED}
--- Dự án đang chạy (đã có dữ liệu cũ): chạy từng migration còn thiếu (0005, 0006, …) và
+-- Dự án đang chạy (đã có dữ liệu cũ): chạy từng migration còn thiếu (0005, 0006, 0007, …) và
 -- data-update-production.sql (một lần, xem README); bucket 'payout-proofs' tạo bằng câu lệnh cuối file này.
 begin;
 

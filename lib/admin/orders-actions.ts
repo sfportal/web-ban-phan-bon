@@ -145,7 +145,7 @@ export type DashboardStats = {
    * đơn đại lý tính `partner_payable`, đơn khác tính `subtotal`.
    */
   monthRevenue: number
-  /** Hoa hồng chưa chi: tổng mọi dòng hoa hồng (đã trừ dòng âm do trả hàng) trừ các khoản đã chuyển (ví). */
+  /** Hoa hồng chưa chi (bỏ dữ liệu thử; cả đơn, hoa hồng và khoản chi): tổng mọi dòng hoa hồng (đã trừ dòng âm do trả hàng) trừ các khoản đã chuyển (ví). */
   pendingCommission: number
 }
 
@@ -155,15 +155,15 @@ export async function dashboardStats(): Promise<DashboardStats> {
   const now = new Date()
   const monthStart = vnDateStart(`${vnPeriod(now)}-01`)!.toISOString()
   const [today, delivered, paidLog, earned, paidOut] = await Promise.all([
-    db.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', vnDayStart(0, now).toISOString()).throwOnError(),
-    db.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'delivered').throwOnError(),
+    db.from('orders').select('id', { count: 'exact', head: true }).eq('is_demo', false).gte('created_at', vnDayStart(0, now).toISOString()).throwOnError(),
+    db.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'delivered').eq('is_demo', false).throwOnError(),
     fetchAll((from, to) =>
-      db.from('order_status_log').select('id, order_id, orders(subtotal, partner_payable, status)')
-        .eq('to_status', 'paid').gte('changed_at', monthStart).order('id').range(from, to).throwOnError()),
+      db.from('order_status_log').select('id, order_id, orders!inner(subtotal, partner_payable, status)')
+        .eq('to_status', 'paid').eq('orders.is_demo', false).gte('changed_at', monthStart).order('id').range(from, to).throwOnError()),
     fetchAll((from, to) =>
-      db.from('commission_entries').select('id, amount').order('id').range(from, to).throwOnError()),
+      db.from('commission_entries').select('id, amount, orders!inner(is_demo)').eq('orders.is_demo', false).order('id').range(from, to).throwOnError()),
     fetchAll((from, to) =>
-      db.from('payouts').select('id, amount').eq('status', 'paid').order('id').range(from, to).throwOnError()),
+      db.from('payouts').select('id, amount').eq('status', 'paid').eq('is_demo', false).order('id').range(from, to).throwOnError()),
   ])
   const seen = new Set<string>()
   let monthRevenue = 0
@@ -196,7 +196,7 @@ export async function exportOrders(from: Date, to: Date): Promise<Buffer> {
     db.from('order_lines')
       .select(`id, qty, sale_price_snap, line_total, rate_pct_snap, line_commission, line_partner_price,
         farmers(name, phone), products(name),
-        orders!inner(code, created_at, source, status, retail_name, retail_phone, partners(name))`)
+        orders!inner(code, created_at, source, status, is_demo, retail_name, retail_phone, partners(name))`)
       .gte('orders.created_at', from.toISOString()).lt('orders.created_at', to.toISOString())
       .order('id').range(f, t).throwOnError())
   lines.sort((a, b) =>
@@ -217,5 +217,6 @@ export async function exportOrders(from: Date, to: Date): Promise<Buffer> {
     commission: Number(l.line_commission),
     partnerPrice: l.line_partner_price === null ? null : Number(l.line_partner_price),
     status: l.orders.status,
+    isDemo: l.orders.is_demo,
   })))
 }

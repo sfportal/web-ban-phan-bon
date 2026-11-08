@@ -52,11 +52,12 @@ describe('buildOrdersWorkbook', () => {
     expect((values[1] as Date).toISOString()).toBe('2026-11-07T08:30:00.000Z')
     expect(ws.getRow(2).getCell(2).numFmt).toBe('dd/mm/yyyy hh:mm')
     expect([values[0], ...values.slice(2)]).toEqual([
-      'DH2611-0001', 'Đối tác', 'CTV An', 'Ông Ba', '0912345678', 'NPK 16-16-8', 3, 350000, 1050000, 5, 52500, '', 'Đã thu đủ tiền',
+      'DH2611-0001', 'Đối tác', 'CTV An', 'Ông Ba', '0912345678', 'NPK 16-16-8', 3, 350000, 1050000, 5, 52500, '', 'Đã thu đủ tiền', '—',
     ])
     expect(rowValues(ws, 3).slice(2, 4)).toEqual(['Đơn lẻ', ''])
     expect(rowValues(ws, 3)[12]).toBe(330000)
     expect(rowValues(ws, 3)[13]).toBe('Mới')
+    expect(rowValues(ws, 3)[14]).toBe('—')
     for (const c of [9, 10, 12, 13]) expect(ws.getRow(2).getCell(c).numFmt).toBe('#,##0')
   })
 })
@@ -102,7 +103,7 @@ describe('xuất chi trả', () => {
     expect(ws.name).toBe('Yêu cầu rút')
     expect(PAYOUT_HEADERS).toEqual([
       'CTV', 'SĐT', 'Số tiền', 'Trạng thái', 'Ngân hàng', 'Số tài khoản', 'Chủ tài khoản', 'Ngày yêu cầu',
-      'Mã giao dịch', 'Ngày chuyển', 'Lý do từ chối',
+      'Mã giao dịch', 'Ngày chuyển', 'Lý do từ chối', 'Dữ liệu thử',
     ])
     expect(rowValues(ws, 1)).toEqual([...PAYOUT_HEADERS])
     const v = rowValues(ws, 2)
@@ -132,15 +133,15 @@ describe('xuất chi trả', () => {
   test('số dư đối tác: 4 cột tiền, hàng tổng, số âm giữ nguyên', async () => {
     const rows: BalanceExportRow[] = [
       { partnerName: 'CTV An', phone: '0905000001', earned: 300000, pendingOut: 100000, paid: 150000, available: 50000 },
-      { partnerName: 'CTV Bình', phone: '0905000002', earned: 120000, pendingOut: 0, paid: 150000, available: -30000 },
+      { partnerName: 'CTV Bình', phone: '0905000002', earned: 120000, pendingOut: 0, paid: 150000, available: -30000, isDemo: true },
     ]
     const ws = (await read(await buildBalancesSheet(rows))).worksheets[0]
     expect(ws.name).toBe('Số dư đối tác')
-    expect(BALANCE_HEADERS).toEqual(['CTV', 'SĐT', 'Đã kiếm được', 'Đang chờ chi', 'Đã nhận', 'Số dư khả dụng'])
+    expect(BALANCE_HEADERS).toEqual(['CTV', 'SĐT', 'Đã kiếm được', 'Đang chờ chi', 'Đã nhận', 'Số dư khả dụng', 'Dữ liệu thử'])
     expect(rowValues(ws, 1)).toEqual([...BALANCE_HEADERS])
-    expect(rowValues(ws, 2)).toEqual(['CTV An', '0905000001', 300000, 100000, 150000, 50000])
-    expect(rowValues(ws, 3)).toEqual(['CTV Bình', '0905000002', 120000, 0, 150000, -30000])
-    expect(rowValues(ws, 4)).toEqual(['Tổng', '', 420000, 100000, 300000, 20000])
+    expect(rowValues(ws, 2)).toEqual(['CTV An', '0905000001', 300000, 100000, 150000, 50000, '—'])
+    expect(rowValues(ws, 3)).toEqual(['CTV Bình', '0905000002', 120000, 0, 150000, -30000, 'Có'])
+    expect(rowValues(ws, 4)).toEqual(['Tổng', '', 420000, 100000, 300000, 20000, ''])
     for (let c = 3; c <= 6; c++) expect(ws.getRow(2).getCell(c).numFmt).toBe('#,##0')
   })
 })

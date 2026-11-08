@@ -713,6 +713,11 @@ export type Database = {
         // { status: 'ok', farmer_id } | { status: 'owned_by_other' }
         Returns: Json
       }
+      delete_demo_data: {
+        // 0007: xóa dữ liệu thử trong một giao dịch. { payouts, payout_batches, orders, farmers, partners, user_ids }
+        Args: Record<string, never>
+        Returns: Json
+      }
       transfer_farmer: {
         Args: { p_farmer_id: string; p_to_partner: string | null; p_actor: string | null }
         Returns: undefined

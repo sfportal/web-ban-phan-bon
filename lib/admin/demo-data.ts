@@ -19,6 +19,10 @@ export type DemoSummary = { partners: number; farmers: number; orders: number; p
 export type CreateDemoResult =
   | { ok: true; summary: DemoSummary }
   | { error: 'weak_password' | 'already_exists' | 'phone_taken' }
+  | { error: 'auth_error'; message: string }
+export type DeleteDemoResult =
+  | { ok: true; deleted: Record<string, number> }
+  | { error: 'linked_real_data' }
 
 const MIN_PASSWORD = 8
 const BANK = 'Ngân hàng Thử'
@@ -97,6 +101,7 @@ export async function createDemoData(form: { password: string }): Promise<Create
   const { userId: actor } = await requireStaff('admin')
   const password = typeof form?.password === 'string' ? form.password : ''
   if (password.length < MIN_PASSWORD) return { error: 'weak_password' }
+  await sweepOrphanUsers()
   if (await demoExists()) return { error: 'already_exists' }
   if (await phonesTaken()) return { error: 'phone_taken' }
 
@@ -108,7 +113,11 @@ export async function createDemoData(form: { password: string }): Promise<Create
       const { data, error } = await db.auth.admin.createUser({ email: authEmail(p.phone), password, email_confirm: true })
       if (error || !data.user) {
         await removeUsers(createdUsers)
-        return { error: 'phone_taken' }
+        if (error && (error.code === 'email_exists' || error.code === 'user_already_exists' || /already.*registered/i.test(error.message))) {
+          return { error: 'phone_taken' }
+        }
+        console.error('demo: createUser lỗi', error?.code, error?.message)
+        return { error: 'auth_error', message: error?.message ?? 'Không tạo được tài khoản đăng nhập.' }
       }
       createdUsers.push(data.user.id)
     }
@@ -136,7 +145,6 @@ export async function createDemoData(form: { password: string }): Promise<Create
       if (res.status !== 'ok' || !res.farmer_id) throw new Error('demo: claim_farmer thất bại')
       farmerIds.push(res.farmer_id)
     }
-    await db.from('farmers').update({ is_demo: true }).in('id', farmerIds).throwOnError()
 
     await createOrders(partnerIds, farmerIds, actor)
     await createPayouts(partnerIds, actor)
@@ -150,8 +158,7 @@ export async function createDemoData(form: { password: string }): Promise<Create
       summary: { partners: PARTNERS.length, farmers: FARMERS.length, orders: orders.count ?? 0, payouts: payouts.count ?? 0 },
     }
   } catch (e) {
-    await wipe().catch(() => {})
-    await removeUsers(createdUsers).catch(() => {})
+    await rollbackCreate(createdUsers)
     throw e
   }
 }
@@ -227,48 +234,66 @@ async function createPayouts(partnerIds: string[], actor: string) {
   }).throwOnError()
 }
 
+/** Xóa tài khoản đăng nhập theo id; lỗi được ghi log và bỏ qua (lần sau sweepOrphanUsers dọn tiếp). */
 async function removeUsers(ids: string[]) {
   const db = adminClient()
   for (const id of ids) {
     const { error } = await db.auth.admin.deleteUser(id)
-    if (error && !/not.?found/i.test(error.message)) throw error
+    if (error && !/not.?found/i.test(error.message)) console.error('demo: không xóa được user auth', id, error.message)
   }
 }
 
-const chunk = <T,>(a: T[], n = 100): T[][] => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n))
+/** Tạo dở dang bị lỗi: xóa dữ liệu thử đã ghi và các tài khoản đã tạo, ghi log nếu việc dọn cũng lỗi. */
+async function rollbackCreate(createdUsers: string[]) {
+  try {
+    const { data, error } = await adminClient().rpc('delete_demo_data')
+    if (error) console.error('demo: dọn dữ liệu thử sau lỗi thất bại', error.message)
+    else await removeUsers((data as { user_ids: string[] }).user_ids)
+  } catch (e) {
+    console.error('demo: dọn dữ liệu thử sau lỗi thất bại', e)
+  }
+  await removeUsers(createdUsers)
+}
 
-/** Xóa theo thứ tự khóa ngoại; chỉ bản ghi is_demo và user auth của đối tác thử. */
-async function wipe(): Promise<Record<string, number>> {
+/**
+ * Tài khoản đăng nhập mồ côi của SĐT thử (0900000101–105): có email dành riêng nhưng KHÔNG có hàng
+ * partners lẫn staff (ví dụ lần xóa trước lỗi giữa chừng). Không bao giờ đụng user có đối tác thật,
+ * đối tác thử (RPC xóa lo) hoặc nhân viên.
+ */
+async function sweepOrphanUsers() {
   const db = adminClient()
-  const deleted: Record<string, number> = {}
-  const { data: partners } = await db.from('partners').select('id, user_id').eq('is_demo', true).throwOnError()
-  const { data: orders } = await db.from('orders').select('id').eq('is_demo', true).throwOnError()
-  const orderIds = orders.map((o) => o.id)
-
-  const p1 = await db.from('payouts').delete({ count: 'exact' }).eq('is_demo', true).throwOnError()
-  deleted.payouts = p1.count ?? 0
-  const p2 = await db.from('payout_batches').delete({ count: 'exact' }).eq('is_demo', true).throwOnError()
-  deleted.payout_batches = p2.count ?? 0
-
-  for (const ids of chunk(orderIds)) {
-    await db.from('order_status_log').delete().in('order_id', ids).throwOnError()
-    await db.from('order_lines').delete().in('order_id', ids).throwOnError()
-    await db.from('commission_entries').delete().in('order_id', ids).throwOnError()
+  const reserved = new Set(PARTNERS.map((p) => authEmail(p.phone)))
+  for (let page = 1; ; page++) {
+    const { data, error } = await db.auth.admin.listUsers({ page, perPage: 1000 })
+    if (error) {
+      console.error('demo: không liệt kê được user auth', error.message)
+      return
+    }
+    const candidates = data.users.filter((u) => u.email && reserved.has(u.email))
+    if (candidates.length > 0) {
+      const ids = candidates.map((u) => u.id)
+      const [p, s] = await Promise.all([
+        db.from('partners').select('user_id').in('user_id', ids).throwOnError(),
+        db.from('staff').select('user_id').in('user_id', ids).throwOnError(),
+      ])
+      const used = new Set([...p.data.map((r) => r.user_id), ...s.data.map((r) => r.user_id)])
+      await removeUsers(ids.filter((id) => !used.has(id)))
+    }
+    if (data.users.length < 1000) return
   }
-  const o = await db.from('orders').delete({ count: 'exact' }).eq('is_demo', true).throwOnError()
-  deleted.orders = o.count ?? 0
-
-  const f = await db.from('farmers').delete({ count: 'exact' }).eq('is_demo', true).throwOnError()
-  deleted.farmers = f.count ?? 0
-  const pa = await db.from('partners').delete({ count: 'exact' }).eq('is_demo', true).throwOnError()
-  deleted.partners = pa.count ?? 0
-
-  await removeUsers(partners.map((p) => p.user_id))
-  deleted.users = partners.length
-  return deleted
 }
 
-export async function deleteDemoData(): Promise<{ ok: true; deleted: Record<string, number> }> {
+/** Xóa toàn bộ dữ liệu thử: một giao dịch trong DB, rồi tài khoản đăng nhập của đối tác thử. */
+export async function deleteDemoData(): Promise<DeleteDemoResult> {
   await requireStaff('admin')
-  return { ok: true, deleted: await wipe() }
+  await sweepOrphanUsers()
+  const { data, error } = await adminClient().rpc('delete_demo_data')
+  if (error) {
+    // 23503: còn dữ liệu thật tham chiếu tới dữ liệu thử; giao dịch đã hoàn tác, chưa xóa gì.
+    if (error.code === '23503') return { error: 'linked_real_data' }
+    throw error
+  }
+  const { user_ids, ...counts } = data as { user_ids: string[] } & Record<string, number>
+  await removeUsers(user_ids)
+  return { ok: true, deleted: { ...counts, users: user_ids.length } }
 }

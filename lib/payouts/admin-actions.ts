@@ -183,7 +183,7 @@ function exportRow(r: AdminPayoutRow): PayoutExportRow {
   return {
     partnerName: r.partnerName, phone: r.phone, amount: r.amount, status: r.status, bankName: r.bankName,
     bankAccount: r.bankAccount, bankHolder: r.bankHolder, requestedAt: r.requestedAt.toISOString(),
-    transferRef: r.transferRef, transferredOn: r.transferredOn, rejectReason: r.rejectReason,
+    transferRef: r.transferRef, transferredOn: r.transferredOn, rejectReason: r.rejectReason, isDemo: r.isDemo,
   }
 }
 

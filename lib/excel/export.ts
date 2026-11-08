@@ -4,6 +4,9 @@ import ExcelJS from 'exceljs'
 import { STATUS_LABEL, type OrderStatus } from '@/lib/orders/status'
 import { BATCH_KIND_LABEL, PAYOUT_STATUS_LABEL, type BatchKind, type PayoutStatus } from '@/lib/payouts/validate'
 
+const FLAG_HEADER = 'Dữ liệu thử'
+const flag = (v: boolean | null | undefined) => (v ? 'Có' : '—')
+
 const MONEY = '#,##0'
 const DATE_TIME = 'dd/mm/yyyy hh:mm'
 const DATE = 'dd/mm/yyyy'
@@ -76,22 +79,23 @@ export type OrderExportRow = {
   /** Giá mua / đơn vị của đại lý; null với đơn CTV / đơn lẻ. */
   partnerPrice: number | null
   status: OrderStatus
+  isDemo?: boolean
 }
 
 export const ORDER_HEADERS = [
   'Mã đơn', 'Ngày', 'Nguồn', 'CTV', 'Nông dân', 'SĐT', 'Sản phẩm', 'SL', 'Đơn giá bán', 'Thành tiền',
-  '%', 'Hoa hồng', 'Giá đại lý', 'Trạng thái',
+  '%', 'Hoa hồng', 'Giá đại lý', 'Trạng thái', FLAG_HEADER,
 ] as const
 
 /** Mỗi dòng đơn một hàng. */
 export async function buildOrdersWorkbook(rows: OrderExportRow[]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook()
-  const ws = sheet(wb, 'Đơn hàng', ORDER_HEADERS, [14, 17, 10, 24, 24, 13, 32, 7, 14, 15, 7, 13, 13, 16])
+  const ws = sheet(wb, 'Đơn hàng', ORDER_HEADERS, [14, 17, 10, 24, 24, 13, 32, 7, 14, 15, 7, 13, 13, 16, 12])
   for (const r of rows) {
     ws.addRow([
       r.code, vnWallClock(r.createdAt), r.source === 'partner' ? 'Đối tác' : 'Đơn lẻ', r.partnerName ?? '',
       r.farmerName ?? '', r.phone ?? '', r.productName, r.qty, r.salePrice, r.lineTotal, r.ratePct, r.commission,
-      r.partnerPrice ?? '', STATUS_LABEL[r.status],
+      r.partnerPrice ?? '', STATUS_LABEL[r.status], flag(r.isDemo),
     ])
   }
   ws.getColumn(2).numFmt = DATE_TIME
@@ -114,13 +118,14 @@ export type PayoutExportRow = {
   /** yyyy-mm-dd */
   transferredOn: string | null
   rejectReason: string | null
+  isDemo?: boolean
 }
 
 export const PAYOUT_HEADERS = [
   'CTV', 'SĐT', 'Số tiền', 'Trạng thái', 'Ngân hàng', 'Số tài khoản', 'Chủ tài khoản', 'Ngày yêu cầu',
-  'Mã giao dịch', 'Ngày chuyển', 'Lý do từ chối',
+  'Mã giao dịch', 'Ngày chuyển', 'Lý do từ chối', FLAG_HEADER,
 ] as const
-const PAYOUT_WIDTHS = [26, 13, 14, 12, 20, 18, 24, 17, 16, 12, 28]
+const PAYOUT_WIDTHS = [26, 13, 14, 12, 20, 18, 24, 17, 16, 12, 28, 12]
 
 /** Ngày yyyy-mm-dd → Date 0h UTC (ô ngày thuần, không lệch múi giờ). */
 function dateOnly(ymd: string): Date {
@@ -140,7 +145,7 @@ function addPayoutTable(ws: ExcelJS.Worksheet, rows: PayoutExportRow[]): void {
     ws.addRow([
       r.partnerName, r.phone, r.amount, PAYOUT_STATUS_LABEL[r.status], r.bankName ?? '', r.bankAccount ?? '',
       r.bankHolder ?? '', vnWallClock(r.requestedAt), r.transferRef ?? '',
-      r.transferredOn ? dateOnly(r.transferredOn) : '', r.rejectReason ?? '',
+      r.transferredOn ? dateOnly(r.transferredOn) : '', r.rejectReason ?? '', flag(r.isDemo),
     ])
     total += r.amount
   }
@@ -181,33 +186,35 @@ export type BalanceExportRow = {
   pendingOut: number
   paid: number
   available: number
+  isDemo?: boolean
 }
 
-export const BALANCE_HEADERS = ['CTV', 'SĐT', 'Đã kiếm được', 'Đang chờ chi', 'Đã nhận', 'Số dư khả dụng'] as const
+export const BALANCE_HEADERS = ['CTV', 'SĐT', 'Đã kiếm được', 'Đang chờ chi', 'Đã nhận', 'Số dư khả dụng', FLAG_HEADER] as const
 
 /** Số dư ví mỗi CTV và hàng "Tổng". */
 export async function buildBalancesSheet(rows: BalanceExportRow[]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook()
-  const ws = sheet(wb, 'Số dư đối tác', BALANCE_HEADERS, [30, 14, 15, 15, 15, 16])
+  const ws = sheet(wb, 'Số dư đối tác', BALANCE_HEADERS, [30, 14, 15, 15, 15, 16, 12])
   const total = { earned: 0, pendingOut: 0, paid: 0, available: 0 }
   for (const r of rows) {
-    ws.addRow([r.partnerName, r.phone, r.earned, r.pendingOut, r.paid, r.available])
+    ws.addRow([r.partnerName, r.phone, r.earned, r.pendingOut, r.paid, r.available, flag(r.isDemo)])
     for (const k of Object.keys(total) as (keyof typeof total)[]) total[k] += r[k]
   }
-  ws.addRow(['Tổng', '', total.earned, total.pendingOut, total.paid, total.available]).font = { bold: true }
+  ws.addRow(['Tổng', '', total.earned, total.pendingOut, total.paid, total.available, '']).font = { bold: true }
   for (let c = 3; c <= 6; c++) ws.getColumn(c).numFmt = MONEY
   return toBuffer(wb)
 }
 
 // Sao lưu: mỗi bảng một sheet --------------------------------------------------------------
 
-export type ColumnSpec = { key: string; header: string; type?: 'money' | 'datetime' | 'json' }
+export type ColumnSpec = { key: string; header: string; type?: 'money' | 'datetime' | 'json' | 'flag' }
 export type TableSheet = { name: string; columns: ColumnSpec[]; rows: Record<string, unknown>[] }
 
 function cell(v: unknown, type: ColumnSpec['type']): ExcelJS.CellValue {
   if (v === null || v === undefined) return null
   if (type === 'datetime') return vnWallClock(String(v))
   if (type === 'money') return Number(v)
+  if (type === 'flag') return flag(Boolean(v))
   if (type === 'json' || typeof v === 'object') return typeof v === 'string' ? v : JSON.stringify(v)
   return v as ExcelJS.CellValue
 }
@@ -257,13 +264,13 @@ export const ALL_DATA_SHEETS: { table: string; name: string; order: string[]; co
     table: 'partners', name: 'Đối tác', order: ['id'], columns: [
       col('id', 'ID'), col('phone', 'SĐT'), col('name', 'Tên'), col('region', 'Khu vực'),
       col('delivery_address', 'Địa chỉ giao'), col('tier_id', 'ID bậc'), col('status', 'Trạng thái'),
-      col('created_at', 'Ngày đăng ký', 'datetime'),
+      col('created_at', 'Ngày đăng ký', 'datetime'), col('is_demo', FLAG_HEADER, 'flag'),
     ],
   },
   {
     table: 'farmers', name: 'Nông dân', order: ['id'], columns: [
       col('id', 'ID'), col('phone', 'SĐT'), col('name', 'Tên'), col('address', 'Địa chỉ'),
-      col('owner_partner_id', 'ID CTV sở hữu'), col('created_at', 'Ngày tạo', 'datetime'),
+      col('owner_partner_id', 'ID CTV sở hữu'), col('created_at', 'Ngày tạo', 'datetime'), col('is_demo', FLAG_HEADER, 'flag'),
     ],
   },
   {
@@ -279,7 +286,7 @@ export const ALL_DATA_SHEETS: { table: string; name: string; order: string[]; co
       col('payment_method', 'Thanh toán'), col('retail_name', 'Tên khách lẻ'), col('retail_phone', 'SĐT khách lẻ'),
       col('retail_address', 'Địa chỉ khách lẻ'), col('note', 'Ghi chú'), col('total_qty', 'Tổng SL'),
       col('subtotal', 'Tổng tiền', 'money'), col('partner_payable', 'Đại lý phải trả', 'money'),
-      col('commission_expected', 'Hoa hồng dự kiến', 'money'),
+      col('commission_expected', 'Hoa hồng dự kiến', 'money'), col('is_demo', FLAG_HEADER, 'flag'),
     ],
   },
   {

@@ -10,7 +10,9 @@ const ERRORS = {
   already_exists: 'Đã có dữ liệu thử. Hãy xóa dữ liệu thử trước khi tạo lại.',
   phone_taken: 'Một trong các số 0900000101–0900000105 (hoặc số nông dân thử) đã được dùng bởi dữ liệu thật.',
 } as const
-const NETWORK = 'Không thực hiện được. Kiểm tra kết nối mạng rồi thử lại.'
+const SYSTEM_ERROR = 'Lỗi hệ thống, chưa thực hiện được. Hãy thử lại sau ít phút; nếu vẫn lỗi, báo cho người phụ trách kỹ thuật.'
+const LINKED = 'Không xóa được vì đã có dữ liệu thật gắn với dữ liệu thử (ví dụ đơn hoặc nông dân thật thuộc đối tác thử). Chưa xóa gì. Hãy chuyển hoặc xử lý các bản ghi đó trước.'
+const AUTH_HINT = ' Hãy thử mật khẩu dài hơn, có cả chữ và số.'
 
 /** Tạo / xóa dữ liệu thử. Xóa cần bấm xác nhận ngay trên trang (không dùng hộp thoại của trình duyệt). */
 export function DemoDataPanel({ exists }: { exists: boolean }) {
@@ -29,14 +31,14 @@ export function DemoDataPanel({ exists }: { exists: boolean }) {
     setBusy(true)
     try {
       const res = await createDemoData({ password })
-      if ('error' in res) setError(ERRORS[res.error])
+      if ('error' in res) setError(res.error === 'auth_error' ? `Không tạo được tài khoản đăng nhập: ${res.message}.${AUTH_HINT}` : ERRORS[res.error])
       else {
         form.reset()
         setNotice(summaryText(res.summary))
         router.refresh()
       }
     } catch {
-      setError(NETWORK)
+      setError(SYSTEM_ERROR)
     } finally {
       setBusy(false)
     }
@@ -49,10 +51,14 @@ export function DemoDataPanel({ exists }: { exists: boolean }) {
     try {
       const res = await deleteDemoData()
       setConfirming(false)
+      if ('error' in res) {
+        setError(LINKED)
+        return
+      }
       setNotice(`Đã xóa ${res.deleted.partners ?? 0} đối tác, ${res.deleted.farmers ?? 0} nông dân, ${res.deleted.orders ?? 0} đơn và ${res.deleted.payouts ?? 0} khoản chi thử.`)
       router.refresh()
     } catch {
-      setError(NETWORK)
+      setError(SYSTEM_ERROR)
     } finally {
       setBusy(false)
     }

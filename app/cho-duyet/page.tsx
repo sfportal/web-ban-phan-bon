@@ -1,6 +1,6 @@
 import { Clock3 } from 'lucide-react'
+import Link from 'next/link'
 import { AuthShell } from '@/components/auth/AuthShell'
-import { logout } from '@/lib/auth/actions'
 import { submitButtonClass } from '@/components/AuthField'
 import { SITE_NAME } from '@/lib/site'
 
@@ -16,9 +16,12 @@ export default function PendingPage() {
           Sau khi được duyệt, bạn đăng nhập lại để đặt hàng.
         </p>
       </div>
-      <form action={logout}>
+      <form method="post" action="/dang-xuat">
         <button type="submit" className={`${submitButtonClass} w-full`}>Đăng xuất</button>
       </form>
+      <Link href="/" className="self-center font-semibold text-primary underline underline-offset-4">
+        Về trang chủ
+      </Link>
     </AuthShell>
   )
 }

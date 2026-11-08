@@ -1,7 +1,6 @@
 import { LogOut, Sprout } from 'lucide-react'
 import Link from 'next/link'
 import { PartnerNav } from '@/components/PartnerNav'
-import { logout } from '@/lib/auth/actions'
 import { requirePartner } from '@/lib/auth/guards'
 
 // Guard đọc phiên (cookie) ở đầu layout nên segment chặn trên server: chưa đủ quyền thì
@@ -27,7 +26,7 @@ export default async function PartnerLayout({ children }: LayoutProps<'/doi-tac'
               <span className="block text-sm text-white/80">{partner.kind === 'commission' ? 'Cộng tác viên' : 'Đại lý'}</span>
             </span>
           </Link>
-          <form action={logout} className="shrink-0">
+          <form method="post" action="/dang-xuat" className="shrink-0">
             <button
               type="submit"
               className="flex h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-white/30 px-2.5 font-semibold text-white hover:bg-white/10 sm:px-3"

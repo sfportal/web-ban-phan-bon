@@ -80,8 +80,3 @@ export async function login(form: FormData): Promise<LoginResult> {
   }
   redirect('/doi-tac')
 }
-
-export async function logout(): Promise<never> {
-  await createServerClient().auth.signOut()
-  redirect('/dang-nhap')
-}

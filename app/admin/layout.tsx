@@ -1,7 +1,6 @@
 import { LogOut, Sprout } from 'lucide-react'
 import Link from 'next/link'
 import { AdminNav } from '@/components/admin/AdminNav'
-import { logout } from '@/lib/auth/actions'
 import { requireStaff } from '@/lib/auth/guards'
 import { SITE_NAME } from '@/lib/site'
 
@@ -33,7 +32,7 @@ export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
             </Link>
           }
           footer={
-            <form action={logout} className="border-t border-white/15 pt-3">
+            <form method="post" action="/dang-xuat" className="border-t border-white/15 pt-3">
               <button type="submit" className="flex h-11 w-full items-center gap-3 rounded-xl px-3 font-semibold text-white/85 hover:bg-white/10 hover:text-white">
                 <LogOut aria-hidden className="size-5 text-white/70" />
                 Đăng xuất

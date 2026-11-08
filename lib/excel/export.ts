@@ -32,35 +32,6 @@ function sheet(wb: ExcelJS.Workbook, name: string, headers: readonly string[], w
   return ws
 }
 
-// Hoa hồng ----------------------------------------------------------------------------
-
-export type CommissionRow = {
-  partnerId: string
-  partnerName: string
-  phone: string
-  earned: number
-  reversed: number
-  net: number
-  pending: number
-  paid: number
-}
-
-export const COMMISSION_HEADERS = ['CTV', 'SĐT', 'Ghi nhận', 'Hoàn (trả hàng)', 'Thực nhận', 'Chờ chi', 'Đã chi'] as const
-
-/** Một hàng mỗi CTV của kỳ `period` (YYYY-MM) và hàng "Tổng" cuối. */
-export async function buildCommissionWorkbook(period: string, rows: CommissionRow[]): Promise<Buffer> {
-  const wb = new ExcelJS.Workbook()
-  const ws = sheet(wb, `Hoa hồng ${period}`, COMMISSION_HEADERS, [30, 14, 14, 16, 14, 14, 14])
-  const total = { earned: 0, reversed: 0, net: 0, pending: 0, paid: 0 }
-  for (const r of rows) {
-    ws.addRow([r.partnerName, r.phone, r.earned, r.reversed, r.net, r.pending, r.paid])
-    for (const k of Object.keys(total) as (keyof typeof total)[]) total[k] += r[k]
-  }
-  ws.addRow(['Tổng', '', total.earned, total.reversed, total.net, total.pending, total.paid]).font = { bold: true }
-  for (let c = 3; c <= 7; c++) ws.getColumn(c).numFmt = MONEY
-  return toBuffer(wb)
-}
-
 // Đơn hàng (kế toán) --------------------------------------------------------------------
 
 export type OrderExportRow = {

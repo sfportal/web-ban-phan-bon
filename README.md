@@ -62,10 +62,10 @@ Khuyến nghị: Supabase (bản host, supabase.com) + Vercel.
 
 1. Đăng ký supabase.com → **New project** (region Singapore cho gần Việt Nam). Ghi lại mật khẩu DB.
 2. Chạy migrations **theo đúng thứ tự** `supabase/migrations/0001_schema.sql` → `0002_rls.sql` →
-   `0003_functions.sql` → `0004_phone_check.sql` → `0005_product_details.sql`, chọn một trong ba cách:
+   `0003_functions.sql` → `0004_phone_check.sql` → `0005_product_details.sql` → `0006_payouts.sql` → `0007_demo_flag.sql`, chọn một trong ba cách:
    - **Một file gộp:** dán toàn bộ `supabase/setup-production.sql` vào SQL Editor, bấm *Run* — gồm
-     migrations 0001–0005, dữ liệu sản phẩm/nhóm/bậc (giống `seed.sql`) và bucket ảnh `products`
-     (khi đó bỏ qua bước 3 và 4); hoặc
+     migrations 0001–0007, dữ liệu sản phẩm/nhóm/bậc (giống `seed.sql`), bucket ảnh `products` và bucket
+     chứng từ `payout-proofs` (khi đó bỏ qua bước 3, 4 và 4b); hoặc
    - **SQL Editor** trên dashboard: mở từng file, dán toàn bộ nội dung, bấm *Run*; hoặc
    - **Supabase CLI**:
      ```bash
@@ -79,6 +79,12 @@ Khuyến nghị: Supabase (bản host, supabase.com) + Vercel.
    nếu không, tự nhập nhóm/sản phẩm/bậc trong trang admin.
 4. **Storage** → *New bucket* tên `products`, bật **Public bucket** (ảnh sản phẩm). Ứng dụng tự tạo
    bucket nếu chưa có, nhưng tạo sẵn để kiểm soát cấu hình.
+4b. **Bucket chứng từ chi trả (riêng tư)** — bắt buộc cho tính năng chi trả, nếu không dùng file gộp
+   ở trên. Trong SQL Editor chạy:
+   ```sql
+   insert into storage.buckets (id,name,public) values ('payout-proofs','payout-proofs',false) on conflict do nothing;
+   ```
+   Bucket phải **không công khai**: ứng dụng chỉ cấp link xem 5 phút cho đúng chủ khoản chi và admin.
 5. **Authentication → Providers → Email**: giữ bật (đối tác đăng nhập bằng SĐT, nội bộ map thành
    email `<sdt>@partner.local`; tài khoản được tạo qua API quản trị nên không cần gửi email xác nhận).
 6. **Project Settings → API**: lấy *Project URL*, khoá `anon` và khoá `service_role`.
@@ -98,8 +104,12 @@ npm run data:gen   # kiểm tra dữ liệu (validateDataset) rồi sinh lại 3
 | File sinh ra | Dùng cho |
 |---|---|
 | `supabase/seed.sql` | local/test (`npm run db:reset` chạy sau migrations) |
-| `supabase/setup-production.sql` | dự án Supabase **mới, trống**: migrations 0001–0005 + dữ liệu + bucket ảnh |
+| `supabase/setup-production.sql` | dự án Supabase **mới, trống**: migrations 0001–0007 + dữ liệu + bucket ảnh và bucket chứng từ |
 | `supabase/data-update-production.sql` | dự án **đang chạy** còn bộ 10 sản phẩm mẫu cũ (xem dưới) |
+
+**Dự án đang chạy** khi cập nhật tính năng ví hoa hồng/chi trả/dữ liệu thử: chạy thêm `0006_payouts.sql` và
+`0007_demo_flag.sql` trong SQL Editor (theo thứ tự) và tạo bucket `payout-proofs` như mục 4b; nếu chưa có
+`0005` thì chạy `0005` trước.
 
 Dự án đang chạy từ trước bản giao diện mới: trong SQL Editor chạy **`0005_product_details.sql`**
 trước (thêm cột thương hiệu, mô tả ngắn, thành phần, công dụng, cách dùng, cây trồng, nổi bật; slug

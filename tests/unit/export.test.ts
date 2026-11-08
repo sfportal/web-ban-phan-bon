@@ -1,9 +1,9 @@
 import ExcelJS from 'exceljs'
 import { describe, expect, test } from 'vitest'
 import {
-  ALL_DATA_SHEETS, BALANCE_HEADERS, buildBalancesSheet, buildCommissionWorkbook, buildOrdersWorkbook,
-  buildPayoutBatchSheet, buildPayoutRequestsSheet, buildTablesWorkbook, COMMISSION_HEADERS, ORDER_HEADERS,
-  PAYOUT_HEADERS, type BalanceExportRow, type CommissionRow, type OrderExportRow, type PayoutExportRow,
+  ALL_DATA_SHEETS, BALANCE_HEADERS, buildBalancesSheet, buildOrdersWorkbook,
+  buildPayoutBatchSheet, buildPayoutRequestsSheet, buildTablesWorkbook, ORDER_HEADERS,
+  PAYOUT_HEADERS, type BalanceExportRow, type OrderExportRow, type PayoutExportRow,
 } from '@/lib/excel/export'
 
 async function read(buf: Buffer): Promise<ExcelJS.Workbook> {
@@ -12,30 +12,6 @@ async function read(buf: Buffer): Promise<ExcelJS.Workbook> {
   return wb
 }
 const rowValues = (ws: ExcelJS.Worksheet, r: number) => (ws.getRow(r).values as unknown[]).slice(1)
-
-describe('buildCommissionWorkbook', () => {
-  const rows: CommissionRow[] = [
-    { partnerId: 'a', partnerName: 'CTV An', phone: '0905000001', earned: 120000, reversed: -20000, net: 100000, pending: 100000, paid: 0 },
-    { partnerId: 'b', partnerName: 'CTV Bình', phone: '0905000002', earned: 50000, reversed: 0, net: 50000, pending: 0, paid: 50000 },
-  ]
-
-  test('tiêu đề tiếng Việt, mỗi CTV một hàng, hàng tổng, cột tiền #,##0', async () => {
-    const ws = (await read(await buildCommissionWorkbook('2026-11', rows))).worksheets[0]
-    expect(ws.name).toBe('Hoa hồng 2026-11')
-    expect(rowValues(ws, 1)).toEqual([...COMMISSION_HEADERS])
-    expect(COMMISSION_HEADERS).toEqual(['CTV', 'SĐT', 'Ghi nhận', 'Hoàn (trả hàng)', 'Thực nhận', 'Chờ chi', 'Đã chi'])
-    expect(rowValues(ws, 2)).toEqual(['CTV An', '0905000001', 120000, -20000, 100000, 100000, 0])
-    expect(rowValues(ws, 3)).toEqual(['CTV Bình', '0905000002', 50000, 0, 50000, 0, 50000])
-    expect(rowValues(ws, 4)).toEqual(['Tổng', '', 170000, -20000, 150000, 100000, 50000])
-    expect(ws.rowCount).toBe(4)
-    for (let c = 3; c <= 7; c++) expect(ws.getRow(2).getCell(c).numFmt).toBe('#,##0')
-  })
-
-  test('kỳ không có hoa hồng: chỉ tiêu đề và hàng tổng 0', async () => {
-    const ws = (await read(await buildCommissionWorkbook('2026-10', []))).worksheets[0]
-    expect(rowValues(ws, 2)).toEqual(['Tổng', '', 0, 0, 0, 0, 0])
-  })
-})
 
 describe('buildOrdersWorkbook', () => {
   const row: OrderExportRow = {
